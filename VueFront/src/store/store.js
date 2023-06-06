@@ -6,20 +6,27 @@ Vue.use(Vuex);
 
 const store = new Vuex.Store({
   state: {
-    token: '',
-    userNick: '',
+    accessToken: null,
+    refreshToken: null,
+    userNick: null,
   },
   getters: {
-    getToken(state) {
-        return state.token;
+    getAccessToken(state) {
+      return state.token;
+    },
+    getRefreshToken(state) {
+      return state.accessToken;
     },
     getUserNick(state) {
-        return state.userNick;
+      return state.userNick;
     }
   },
   mutations: {
-    setToken(state, token) {
-        state.token = token;
+    setAccessToken(state, accessToken) {
+        state.accessToken = accessToken;
+    },
+    setRefreshToken(state, refreshToken) {
+      state.refreshToken = refreshToken;
     },
     setUserNick(state, userNick) {
         state.userNick = userNick;
@@ -30,7 +37,7 @@ const store = new Vuex.Store({
   },
   plugins: [
     createPersistedState({
-      paths: ['token', 'userNick'],
+      paths: ['accessToken', 'refreshToken', 'userNick'],
     })
   ]
 })
