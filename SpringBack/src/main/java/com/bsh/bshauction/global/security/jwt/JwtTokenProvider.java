@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 public class JwtTokenProvider {
     private final Key key;
     private final UserRepository userRepository;
+
     public JwtTokenProvider(@Value("${jwt.secret}") String secretKey, UserRepository userRepository) {
         byte[] keyBytes = Decoders.BASE64.decode(secretKey);
         this.userRepository = userRepository;

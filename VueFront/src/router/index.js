@@ -1,7 +1,8 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
-import Home from '../components/Home.vue'
-import Sign from '../components/Sign.vue'
+import HomePage from '../components/HomePage.vue'
+import SignPage from '../components/SignPage.vue'
+import ProductPage from '../components/ProductPage.vue'
 
 Vue.use(VueRouter)
 
@@ -9,12 +10,17 @@ const routes = [
     {
       path: '/',
       name: 'home',
-      component: Home
+      component: HomePage
     },
     {
       path: '/sign',
       name: 'sign',
-      component: Sign,
+      component: SignPage,
+    },
+    {
+      path: '/product/:id',
+      name: 'product',
+      component: ProductPage,
     }
   ]
   

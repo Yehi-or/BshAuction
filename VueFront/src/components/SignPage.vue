@@ -128,6 +128,7 @@ export default {
         });
     },
     signUpSubmit() {
+      
       const data = {
         userNick: this.signUpForm.nick,
         userEmail: this.signUpForm.email,

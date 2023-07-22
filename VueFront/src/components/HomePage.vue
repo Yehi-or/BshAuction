@@ -1,15 +1,68 @@
 <template>
   <div class="home">
     <button @click="goSingPage">로그인</button>
-    <button @click="test22">테스트</button>
+    <div v-for="(data, index) in productList" :key="index" @click="goDetailProductPage(data.productId)">
+      <div id="productName" ref="productName">
+        <p :id="data.productName" :ref="data.productName"> {{ data.productName }}</p>
+      </div>
+      <div id="productPrice" ref="productPrice">
+        <p :id="data.productPrice" :ref="data.productPrice"> {{ data.productPrice }}</p>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
 import axios from 'axios';
-import { access } from 'fs';
+import SockJS from 'sockjs-client';
+import Stomp from 'webstomp-client';
 
 export default {
+  data() {
+    return {
+      productList : [],
+      stomp : null,
+    }
+  },
+  async created() {
+    const productList = await axios.get('/api/product/list');
+    this.productList = productList.data;
+  },
+
+  async mounted() {
+    console.log('mounted Home');
+    let sockJs = new SockJS('http://localhost:8100/ws');
+    this.stomp = Stomp.over(sockJs);
+
+    this.stomp.connect({}, () => {
+      this.stomp.subscribe("/sub/main/", (data) => {
+        let content = JSON.parse(data.body);
+
+        const productId = content.productId;
+        const index = this.productList.findIndex(item => item.productId === productId);
+
+        if(index !== null || index !== undefined) {
+          this.productList[index].productPrice = content.productPrice;
+        }
+
+      })
+    })
+
+  },
+
+  beforeUnmounted() {
+    this.stomp.disconnect(() => {
+      console.log('disconnect');
+    })
+  },
+
+  beforeRouteLeave(to, from, next) {
+    this.stomp.disconnect(() => {
+      console.log('disconnect Home');
+      next();
+    })
+  },
+
   methods: {
     goSingPage() {
       this.$router.push({
@@ -28,18 +81,9 @@ export default {
     submitForm() {
 
     },
-    test22() {
-      axios.post('/api/bid/test22', null, {
-        headers: {
-          Authorization: `Bearer ${"eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiUk9MRV9VU0VSIiwidXNlcklkIjoxMiwiZXhwIjoxNjg2MDM3Mjk3fQ.BrdfHCQGyxJwJaLUmZfVyIQCdTkFw7h_rpPIBvbERH8"}`,
-        }
-      })
-        .then(response => {
-          console.log(response);
-        })
-        .catch(error => {
-          console.error(error);
-        });
+
+    goDetailProductPage(id) {
+      this.$router.push('/product/' + id);
     },
 
     async request(data, url) {
@@ -51,14 +95,14 @@ export default {
           this.$router.push('/sign');
           return;
         }
-      };
+      }
 
       try {
-        const response = await axios.post(url, data, {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        });
+        // const response = await axios.post(url, data, {
+        //   headers: {
+        //     Authorization: `Bearer ${accessToken}`
+        //   }
+        // });
         //정상 데이터 처리 response
       } catch (error) {
         if (error.response && error.response.status === 401) {

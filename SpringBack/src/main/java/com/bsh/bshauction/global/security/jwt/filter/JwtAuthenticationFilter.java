@@ -26,7 +26,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     //명시적으로 authenticate 를 불러서 UserDetailsServiceImpl 에서 User(security.core.userdetails) 를 리턴해서 authentication 을 리턴해도 된다
     //현재 방법은 새로운 userDetails 를 만들어서 거기에 유저 토큰에 포함된 유저 정보를 가지고 권한을 부여한다.
-    //필터 2번 실행되서 변경 doFilterInternal 빈으로 등록되어 있으면 1번 실행되고 apply 에서 한번 더 실행되면서 총 2번이 실행됌.
+    //필터 2번 실행되서 변경 doFilter 빈으로 등록되어 있으면 1번 실행되고 apply 에서 한번 더 실행되면서 총 2번이 실행됌.
+    //스프링 부트는 빈으로 등록된것 중에 필터가 있다면 자동으로 등록하고 실행함 여기서 1번 aplly 에서 1번더 총 2번 실행.
     @Override
     public void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws IOException, ServletException {
 

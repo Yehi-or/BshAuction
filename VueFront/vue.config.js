@@ -4,14 +4,10 @@ dotenv.config({ path: path.join(__dirname, '.env') });
 
 module.exports = {
   devServer: {
-    port: 8200,
     proxy: {
       '/api': {
-        target: 'http://localhost:8100/api',
+        target: process.env.VUE_APP_API_PATH,
         changeOrigin: true,
-        pathRewrite: { 
-          '^/api': ''
-        } 
       }
     }
   },

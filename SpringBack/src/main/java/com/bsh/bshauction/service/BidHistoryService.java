@@ -9,13 +9,18 @@ import com.bsh.bshauction.repository.BidRepository;
 import com.bsh.bshauction.repository.ProductRepository;
 import com.bsh.bshauction.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.persistence.OptimisticLockException;
 import java.math.BigDecimal;
 import java.util.Optional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class BidHistoryService {
     //@Transactional 롤백 처리에 대해서
@@ -24,11 +29,14 @@ public class BidHistoryService {
     private final UserRepository userRepository;
     private final ProductRepository productRepository;
     private final BidRepository bidRepository;
+    private final SimpMessagingTemplate template;
 
     //입찰 시도 bidAttempt 메서드
     //중복 확인, 가격 비교, 입찰 기록 저장, 최고 입찰액 업데이트 등의 작업 모듈화 해야함.
+    //이후 RabbitMQ 로 변경시도 예정
     @Transactional
     public String bidAttempt(Long userId, BigDecimal bidPrice, Long productId) {
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         Product product = productRepository.findById(productId)
@@ -43,7 +51,7 @@ public class BidHistoryService {
         long duplicateCount = bidHistoryRepository.countByProductAndAmountAndUser(product, bidPrice, user);
 
         if (duplicateCount > 0) {
-            return "duplicate";
+            return "duplicated";
         }
 
         BidHistory bidHistory = BidHistory.builder()
@@ -71,13 +79,26 @@ public class BidHistoryService {
 
                 //상품 가격 업데이트 (가장 높은 가격으로)
                 if (highestBidAmount.compareTo(BigDecimal.ZERO) > 0) {
-                    product.setPrice(highestBidAmount);
+                    Product updatedProduct = productRepository.findById(productId)
+                            .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+
+                    if (updatedProduct.getVersion().equals(product.getVersion())) {
+                        // 상품 가격 업데이트
+                        log.info("success Update");
+                        updatedProduct.setPrice(highestBidAmount);
+                        productRepository.save(updatedProduct);
+                    } else {
+                        // 충돌이 발생한 경우 예외 발생
+                        log.info("detected");
+                        //ExceptionHandler 설정 해야함.....
+                        throw new OptimisticLockException("Concurrent update detected for product with ID: " + productId);
+                    }
                 }
                 return "success";
             } else {
                 return "fail";
             }
         }
-        return "error";
+        return "fail";
     }
 }
