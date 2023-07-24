@@ -36,6 +36,7 @@ dependencies {
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    implementation 'org.redisson:redisson-spring-boot-starter:3.18.0'
 
     // https://mvnrepository.com/artifact/org.webjars/stomp-websocket
     implementation group: 'org.webjars', name: 'stomp-websocket', version: '2.3.3-1'
