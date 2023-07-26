@@ -3,6 +3,7 @@ import VueRouter from 'vue-router'
 import HomePage from '../components/HomePage.vue'
 import SignPage from '../components/SignPage.vue'
 import ProductPage from '../components/ProductPage.vue'
+import MainHeader from '../components/MainHeader.vue'
 
 Vue.use(VueRouter)
 
@@ -21,7 +22,12 @@ const routes = [
       path: '/product/:id',
       name: 'product',
       component: ProductPage,
-    }
+    },
+    {
+      path: '/mainHeader',
+      name: 'mainHeader',
+      component: MainHeader,
+    },
   ]
   
   const router = new VueRouter({

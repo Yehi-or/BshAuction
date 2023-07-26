@@ -82,7 +82,7 @@ export default {
         password: '',
         passwordConfirm: '',
       },
-      loginMessage : '',
+      loginMessage: '',
     }
   },
   mounted() {
@@ -113,12 +113,11 @@ export default {
 
       axios.post('/api/user/signIn', data)
         .then(response => {
-          // this.$store.getters.getToken;
-          // this.$store.state.token;
-          // this.$store.dispatch('request', {id : 'aa', url : 'ddd', data : {} 
-          // })
-          // this.$store.commit('setToken', response.data.token);
-          this.$store.commit('setUserNick', response.data.nick);
+          this.$store.commit('setAccessToken', response.data.accessToken);
+          this.$store.commit('setRefreshToken', response.data.refreshToken);
+          this.$store.commit('setUserNick', response.data.userNick);
+          this.$store.commit('setUserIdNum', response.data.userId);
+          this.$store.commit('setIsLoggined', true);
           this.loginMessage = response.data.loginMessage;
           console.log(this.loginMessage);
           this.$router.push('/');
@@ -128,7 +127,7 @@ export default {
         });
     },
     signUpSubmit() {
-      
+
       const data = {
         userNick: this.signUpForm.nick,
         userEmail: this.signUpForm.email,
@@ -155,7 +154,7 @@ export default {
   }
 }
 </script>
-<style>
+<!-- <style>
 
 a {
   cursor: pointer;
@@ -429,4 +428,4 @@ h6 span{
   width: auto;
   display: block;
 }
-</style>
+</style> -->

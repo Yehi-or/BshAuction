@@ -63,6 +63,7 @@ public class UserService {
                         .grantType(tokenInfo.getGrantType())
                         .accessToken(tokenInfo.getAccessToken())
                         .refreshToken(tokenInfo.getRefreshToken())
+                        .userId(userId)
                         .build();
 
                 UserRefreshToken userRefreshToken = existingUser.get().getUserRefreshToken();

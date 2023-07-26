@@ -1,13 +1,16 @@
 package com.bsh.bshauction.service;
 
+import com.bsh.bshauction.dto.SearchRankingDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -16,6 +19,7 @@ public class RedisService {
     private final RedisTemplate<String, String> redisTemplate;
     private static final String SEARCH_WEIGHT_PREFIX = "search_weight:";
     private double totalSearchFrequency = 0;
+    private final SimpMessagingTemplate template;
 
     @Async
     public void doSearch(String keyword) {
@@ -36,6 +40,15 @@ public class RedisService {
         log.info("--Start Scheduled--");
         getAverageSearchFrequencyForOneHours();
         log.info("--End Scheduled--");
+    }
+
+    @Scheduled(fixedRate = 5 * 6000)
+    public void getSearchRanking() {
+        log.info("--update search ranking--");
+        List<String> rankingList = searchRankingList();
+        if(rankingList != null) {
+            template.convertAndSend("/sub/search/ranking/", rankingList);
+        }
     }
 
     private Set<ZSetOperations.TypedTuple<String>> getAllSearchKeywordForOneHour(String keyValue) {
@@ -95,6 +108,16 @@ public class RedisService {
 
         redisTemplate.opsForZSet().removeRange("search_keyword_forOneHour", 0, -1);
         totalSearchFrequency = 0;
+    }
+
+
+    public List<String> searchRankingList() {
+        String key = "search_ranking";
+        Set<ZSetOperations.TypedTuple<String>> typedTuples = redisTemplate.opsForZSet().reverseRangeWithScores(key, 0, 9);
+        if(typedTuples != null) {
+            return typedTuples.stream().map(ZSetOperations.TypedTuple::getValue).collect(Collectors.toList());
+        }
+        return null;
     }
 
 }

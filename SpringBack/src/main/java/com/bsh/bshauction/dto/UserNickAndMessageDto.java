@@ -14,13 +14,15 @@ public class UserNickAndMessageDto {
     private String accessToken;
     private String refreshToken;
     private String grantType;
+    private Long userId;
 
     @Builder
-    public UserNickAndMessageDto(String userNick, String loginMessage, String refreshToken, String accessToken, String grantType) {
+    public UserNickAndMessageDto(String userNick, String loginMessage, String refreshToken, String accessToken, String grantType, Long userId) {
         this.refreshToken = refreshToken;
         this.accessToken = accessToken;
         this.userNick = userNick;
         this.loginMessage = loginMessage;
         this.grantType = grantType;
+        this.userId = userId;
     }
 }

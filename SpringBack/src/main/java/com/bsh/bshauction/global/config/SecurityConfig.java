@@ -44,6 +44,7 @@ public class SecurityConfig {
                 .headers().disable()
                 .authorizeHttpRequests()
                 .antMatchers("/ws/**").permitAll()
+                .antMatchers("/accessWs/**").authenticated()
                 .antMatchers("/pub/**").permitAll()
                 .antMatchers("/sub/**").permitAll()
                 .antMatchers("/api/bid/test22").hasRole("USER")

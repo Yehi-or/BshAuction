@@ -12,7 +12,6 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/search")
 public class RedisController {
     private final RedisService redisService;
-
     @GetMapping("/{keyword}")
     public void test(@PathVariable String keyword) {
         redisService.doSearch(keyword);

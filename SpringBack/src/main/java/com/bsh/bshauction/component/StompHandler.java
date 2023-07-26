@@ -2,6 +2,7 @@ package com.bsh.bshauction.component;
 
 import com.bsh.bshauction.global.security.jwt.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.expression.AccessException;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
@@ -15,6 +16,7 @@ import java.nio.file.AccessDeniedException;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class StompHandler implements ChannelInterceptor {
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -28,6 +30,9 @@ public class StompHandler implements ChannelInterceptor {
             if(StringUtils.hasText(token) && token.startsWith("Bearer")) {
                 token = token.substring(7);
             }
+
+            System.out.println(message);
+            log.info("token : {}", token);
 
             if(token != null && !jwtTokenProvider.validateToken(token)) {
                 try {

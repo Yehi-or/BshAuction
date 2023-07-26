@@ -7,6 +7,7 @@ import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -70,7 +71,7 @@ public class JwtTokenProvider {
     }
 
     @Transactional(readOnly = true)
-    public String refreshAccessToken(String refreshToken) {
+    public ResponseEntity<String> refreshAccessToken(String refreshToken) {
         if(validateToken(refreshToken)) {
             Optional<com.bsh.bshauction.entity.User> user = userRepository.findByUserRefreshToken_RefreshToken(refreshToken);
             if(user.isPresent()) {
@@ -83,15 +84,15 @@ public class JwtTokenProvider {
                 //Access Token 생성
                 Date accessTokenExpiresIn = new Date(now + 86400 * 1000);
 
-                return Jwts.builder()
+                return ResponseEntity.status(201).body(Jwts.builder()
                         .setClaims(claims)
                         .setExpiration(accessTokenExpiresIn)
                         .signWith(key, SignatureAlgorithm.HS256)
-                        .compact();
+                        .compact());
             }
-            return "이상한 토큰 값";
+            return ResponseEntity.status(401).body("Unauthorized");
         }
-        return "로그아웃";
+        return ResponseEntity.status(403).body("expiration");
     }
 
     // JWT 토큰을 복호화하여 토큰에 들어있는 정보를 꺼내는 메서드
