@@ -140,6 +140,25 @@ public class JwtTokenProvider {
         return false;
     }
 
+    public String customValidateToken(String token) {
+        try {
+            Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
+            return "success";
+        } catch(io.jsonwebtoken.security.SecurityException | MalformedJwtException e) {
+            log.info("Invalid JWT Token", e);
+            return "invalid";
+        } catch(ExpiredJwtException e) {
+            log.info("Expired JWT Token", e);
+            return "expired";
+        } catch(UnsupportedJwtException e) {
+            log.info("Unsupported JWT Token", e);
+            return "unsupported";
+        } catch(IllegalArgumentException e) {
+            log.info("JWT claims string is empty.", e);
+            return "emptyClaims";
+        }
+    }
+
     public Claims parseClaims(String accessToken) {
         try {
             return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(accessToken).getBody();

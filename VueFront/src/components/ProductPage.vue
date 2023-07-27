@@ -1,17 +1,43 @@
 <template>
-  <div>
-    <div>
-      <div v-for="(data, index) in productBidList" :key="index">
-        <div class="bidList">
-          <div>
-            {{ data }}
-          </div>
+  <div class="detail_product_container" id="one">
+    <div class="first">
+      <div class="img_container">
+        <img class="product_img" src="@/assets/logo.png">
+      </div>
+      <p class="product_name"> {{ this.productName }}</p>
+      <p class="product_price"> 현재 가격 : {{ this.productCurrentPrice }}</p>
+    </div>
+    <div class="second">
+      <div id="fifth">
+        <div class="emojiright">
+          <p class="coffeename"> 상품명 : {{ this.productName }}</p>
         </div>
       </div>
-    </div>
-    <div>
-      <input type="text" id="text">
-      <button class="btn btn-outline-secondary" type="button" id="button-send">입찰</button>
+      <div class="table_container">
+          <table class="inner_table">
+            <thead>
+              <tr>
+                <th>입찰가</th>
+                <th>입찰자</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(data, index) in productBidList" :key="index">
+                <td>{{ data.bidPrice }}</td>
+                <td>{{ data.bidUserName }}</td>
+                <td>
+                  <input type="checkbox" v-if="isFirstClick && checkMine(data.bidUserName, data.userId)" v-model="selectedBids" :value="data" />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+      </div>
+      <div id="result_message"></div>
+      <div class="try_bid">
+        <input type="text" id="text">
+        <button class="btn btn-outline-secondary" type="button" id="button-send">입찰</button>
+        <button type="button" id="bid_cancle" ref="bid_cancle" @click="bidCancle()">입찰취소</button>
+      </div>
     </div>
   </div>
 </template>
@@ -27,20 +53,28 @@ export default {
       productId: null,
       stomp: null,
       productBidList: [],
+      productName: null,
+      productCurrentPrice: null,
+      isFirstClick : false,
+      selectedBids : [],
     }
   },
   async created() {
-    this.productId = this.$route.params.id;
 
+    this.productId = this.$route.params.id;
     const detailProductList = await axios.get('/api/product/' + this.productId);
+
     this.productBidList = detailProductList.data.bidList;
+    this.productName = detailProductList.data.productName;
+    this.productCurrentPrice = detailProductList.data.price;
+
   },
 
   mounted() {
     console.log('mounted Product');
     let sockJs = new SockJS('http://localhost:8100/ws');
     this.stomp = Stomp.over(sockJs);
-    
+
     this.stomp.connect({}, () => {
       this.stomp.subscribe("/sub/product/" + this.productId, (chat) => {
         try {
@@ -49,10 +83,16 @@ export default {
           const returnMessage = content.returnMessage;
           const tryPrice = content.tryPrice;
 
+          if (returnMessage === 'notMatchROLE') {
+
+          }
+
           if (returnMessage === 'success') {
             this.productBidList.push(tryPrice);
+            this.productCurrentPrice = tryPrice;
           }
-        } catch(err) {
+
+        } catch (err) {
           console.log(err);
         }
 
@@ -67,22 +107,22 @@ export default {
     })
 
     const btn = document.querySelector('#button-send');
+    const cancleBtn = this.$refs.bid_cancle;
 
     btn.addEventListener('click', (e) => {
       const inputElement = document.getElementById('text');
       const value = inputElement.value;
-      const userIdNum = this.$store.getters.getUserIdNum;
+      const userIdNum = sessionStorage.getItem('userIdNum');
       const url = '/pub/product/bid/' + this.productId;
 
-      if (this.$store.getters.getIsLoggined && userIdNum) {
-
+      if (sessionStorage.getItem("isLoggined") && userIdNum) {
         const data = {
-          data : JSON.stringify({
+          data: JSON.stringify({
             userId: userIdNum,
             bidPrice: value,
             bidMessageAccessToken: this.$store.getters.getAccessToken,
           }),
-          url : url,
+          url: url,
           stomp: this.stomp,
         };
 
@@ -91,6 +131,27 @@ export default {
         alert('로그인 후 이용해 주세요');
       }
     })
+  },
+
+  methods : {
+    bidCancle() {
+      console.log('aa');
+      const userIdNum = sessionStorage.getItem('userIdNum');
+
+      if(userIdNum !== null) {
+        if(!this.isFirstClick) {
+          this.isFirstClick = true;
+        }else {
+          console.log(this.selectedBids);
+        }
+      }else {
+        alert('로그인 후 이용해 주세요');
+      }
+    },
+    checkMine(userName, userId) {
+      const userIdNum = sessionStorage.getItem('userIdNum');
+      return userIdNum == userId;
+    }
   },
 
   beforeUnmounted() {
@@ -109,3 +170,65 @@ export default {
 }
 
 </script>
+
+<style>
+.detail_product_container {
+  width: 1200px;
+  margin: 10px auto;
+}
+
+.detail_product_container .product_img {
+  width: 250px;
+  height: 250px;
+}
+
+.detail_product_container .product_name {
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center;
+}
+
+.first {
+  margin-top: 100px;
+  width: 50%;
+  margin-right: 5px;
+}
+
+.second {
+  width: 50%;
+}
+
+.img_container {
+  justify-content: center;
+  display: flex;
+}
+
+.table_container {
+  width: 100%;
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #ccc
+}
+
+.table_container td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: center;
+}
+
+.inner_table {
+  width: 100%;
+}
+
+.product_price {
+  text-align: center;
+}
+
+.try_bid{
+  margin-top: 20px;
+}
+
+#one {
+  display: flex;
+}
+</style>

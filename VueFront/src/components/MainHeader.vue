@@ -4,11 +4,17 @@
             <h1 id="logo"><a href="/" class="logo">BSH Auction</a></h1>
             <nav v-if="!this.isLogin">
                 <ul>
-                    <li><a href="/sign">sign</a></li>
+                    <li><router-link to="/sign">signIn</router-link></li>
+                    <li><router-link to="/signUp">signUp</router-link></li>
                 </ul>
             </nav>
             <nav v-else>
                 <ul>
+                    <li>
+                        <div class="userInfo">
+                            <div class="userNick"> {{ this.userNick }} </div>
+                        </div>
+                    </li>
                     <li><a href="/sign">logout</a></li>
                 </ul>
             </nav>
@@ -21,9 +27,17 @@
 export default {
     data() {
         return {
-            isLogin: false
-        }
-    }
+            isLogin: false,
+            userNick: null,
+        };
+    },
+    mounted() {
+        let isLogin = sessionStorage.getItem("isLoggined");
+        let userNick = sessionStorage.getItem("userNick");
+
+        this.isLogin = isLogin;
+        this.userNick = userNick;
+    },
 }
 
 </script>

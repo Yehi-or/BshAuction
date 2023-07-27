@@ -1,10 +1,11 @@
 <template>
   <div class="home">
-    <div v-for="(data, index) in productList" :key="index" @click="goDetailProductPage(data.productId)">
-      <div id="productName" ref="productName">
-        <p :id="data.productName" :ref="data.productName"> {{ data.productName }}</p>
+    <div v-for="(data, index) in productList" :key="index" class="productList">
+      <div class="productPrice">
+        <img src="@/assets/logo.png" class="imgSize" @click="goDetailProductPage(data.productId)">
       </div>
-      <div id="productPrice" ref="productPrice">
+      <div class="product_info">
+        <p :id="data.productName" :ref="data.productName"> {{ data.productName }}</p>
         <p :id="data.productPrice" :ref="data.productPrice"> {{ data.productPrice }}</p>
       </div>
     </div>
@@ -30,6 +31,7 @@ export default {
   },
 
   async mounted() {
+
     let sockJs = new SockJS('http://localhost:8100/ws');
     this.stomp = Stomp.over(sockJs);
 
@@ -141,4 +143,22 @@ body {
 
 a {text-decoration:none;}
 
+.imgSize {
+  width: 100%;
+  height: 250px;
+}
+
+.productList {
+  width: 250px;
+  height: 280px;
+  margin: 15px;
+}
+
+.product_info {
+  text-align: center;
+}
+
+.home {
+  display: flex;
+}
 </style>

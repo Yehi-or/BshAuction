@@ -55,4 +55,12 @@ export default {
   #app {
     width : 1500px;
   }
+  
+  body {
+    margin: 0;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
 </style>

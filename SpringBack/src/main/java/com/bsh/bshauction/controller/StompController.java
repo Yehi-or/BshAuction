@@ -43,17 +43,21 @@ public class StompController {
             token = token.substring(7);
         }
 
+        String returnTokenValidate = jwtTokenProvider.customValidateToken(token);
+
         if(token != null) {
-            if(jwtTokenProvider.validateToken(token)) {
+            if(returnTokenValidate.equals("success")) {
                 Claims claims = jwtTokenProvider.parseClaims(token);
 
                 Object roleObject = claims.get("role");
 
                 if(roleObject == null) {
+                    template.convertAndSend("/sub/product/" + productId, "notHaveRole");
                     throw new RuntimeException("권한 정보가 없는 토큰입니다.");
                 }
 
                 if (!(roleObject instanceof String)) {
+                    template.convertAndSend("/sub/product/" + productId, "notMatchRole");
                     throw new RuntimeException("올바르지 않은 권한 정보입니다.");
                 }
 
@@ -81,11 +85,13 @@ public class StompController {
                     //상품 식별자와 가격 추가해서 메인에서도 해당 상품의 가격이 변동 될 수 있게
                     template.convertAndSend("/sub/product/" + productId, bidReturnDTO);
                 }else {
-                    template.convertAndSend("/sub/product/", "notMatchROLE");
+                    template.convertAndSend("/sub/product/" + productId, "notMatchROLE");
                 }
             } else {
-                template.convertAndSend("/sub/product/", "tokenFail");
+                template.convertAndSend("/sub/product/" + productId, returnTokenValidate);
             }
+        } else {
+            template.convertAndSend("/sub/product/" + productId, "requireLogin");
         }
     }
 

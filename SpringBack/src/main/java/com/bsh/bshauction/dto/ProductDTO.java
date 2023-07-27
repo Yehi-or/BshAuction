@@ -14,5 +14,5 @@ import java.util.List;
 public class ProductDTO {
     private String productName;
     private BigDecimal price;
-    private List<BigDecimal> bidList;
+    private List<BidListDTO> bidList;
 }

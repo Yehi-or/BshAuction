@@ -1,5 +1,6 @@
 package com.bsh.bshauction.controller;
 
+import com.bsh.bshauction.dto.BidListDTO;
 import com.bsh.bshauction.dto.ProductDTO;
 import com.bsh.bshauction.dto.ProductListDTO;
 import com.bsh.bshauction.entity.Product;
@@ -41,14 +42,14 @@ public class productController {
     }
 
     @GetMapping("/{productId}")
-    public ResponseEntity<ProductDTO> detailProductList(@PathVariable Long productId) {
+    public ResponseEntity<ProductDTO> detailProductInfo(@PathVariable Long productId) {
 
         log.info("---productId : {}", productId);
         Optional<Product> product = productRepository.findById(productId);
 
         if(product.isPresent()) {
-            List<BigDecimal> bidList = bidRepository.findByProductOrderByAmountAsc(product.get());
-
+            List<BidListDTO> bidList = bidRepository.findByProductOrderByAmountAsc(product.get());
+            System.out.println(bidList);
             ProductDTO productDTO = ProductDTO.builder()
                     .productName(product.get().getProductName())
                     .price(product.get().getPrice())
@@ -59,4 +60,5 @@ public class productController {
         }
         return null;
     }
+
 }

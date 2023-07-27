@@ -115,9 +115,9 @@ export default {
         .then(response => {
           this.$store.commit('setAccessToken', response.data.accessToken);
           this.$store.commit('setRefreshToken', response.data.refreshToken);
-          this.$store.commit('setUserNick', response.data.userNick);
-          this.$store.commit('setUserIdNum', response.data.userId);
-          this.$store.commit('setIsLoggined', true);
+          sessionStorage.setItem('userNick', response.data.userNick)
+          sessionStorage.setItem('userIdNum', response.data.userId)
+          sessionStorage.setItem('isLoggined', true);
           this.loginMessage = response.data.loginMessage;
           console.log(this.loginMessage);
           this.$router.push('/');
