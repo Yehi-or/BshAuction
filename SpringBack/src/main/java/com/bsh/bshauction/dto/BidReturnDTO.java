@@ -10,6 +10,6 @@ import java.math.BigDecimal;
 @Getter
 @Builder
 public class BidReturnDTO {
-    private String returnMessage;
+    private ReturnBidAttemptDTO returnBidAttemptDTO;
     private BigDecimal tryPrice;
 }

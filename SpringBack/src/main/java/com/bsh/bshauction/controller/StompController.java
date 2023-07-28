@@ -1,9 +1,6 @@
 package com.bsh.bshauction.controller;
 
-import com.bsh.bshauction.dto.BidDto;
-import com.bsh.bshauction.dto.BidMainReturnDTO;
-import com.bsh.bshauction.dto.BidReturnDTO;
-import com.bsh.bshauction.dto.SearchRankingDTO;
+import com.bsh.bshauction.dto.*;
 import com.bsh.bshauction.global.security.jwt.JwtTokenProvider;
 import com.bsh.bshauction.service.BidHistoryService;
 import com.bsh.bshauction.service.RedisService;
@@ -61,14 +58,15 @@ public class StompController {
                     throw new RuntimeException("올바르지 않은 권한 정보입니다.");
                 }
 
-                if(((String) roleObject).contains("ROLE_USER")) {
-                    String returnType = bidHistoryService.bidAttempt(bidDto.getUserId(), bidDto.getBidPrice(), productId);
-                    BidReturnDTO bidReturnDTO;
+                BidReturnDTO bidReturnDTO;
 
-                    if(returnType.equals("success")) {
+                if(((String) roleObject).contains("ROLE_USER")) {
+                    ReturnBidAttemptDTO returnType = bidHistoryService.bidAttempt(bidDto.getUserId(), bidDto.getBidPrice(), productId);
+
+                    if(returnType.getReturnMessage().equals("success")) {
                         //경매 상세페이지 변경
                         bidReturnDTO = BidReturnDTO.builder()
-                                .returnMessage(returnType)
+                                .returnBidAttemptDTO(returnType)
                                 .tryPrice(bidDto.getBidPrice())
                                 .build();
 
@@ -77,7 +75,7 @@ public class StompController {
                     } else {
 
                         bidReturnDTO = BidReturnDTO.builder()
-                                .returnMessage(returnType)
+                                .returnBidAttemptDTO(returnType)
                                 .tryPrice(null)
                                 .build();
                     }
@@ -85,15 +83,52 @@ public class StompController {
                     //상품 식별자와 가격 추가해서 메인에서도 해당 상품의 가격이 변동 될 수 있게
                     template.convertAndSend("/sub/product/" + productId, bidReturnDTO);
                 }else {
-                    template.convertAndSend("/sub/product/" + productId, "notMatchROLE");
+                    ReturnBidAttemptDTO returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                            .returnMessage("notMatchROLE")
+                            .build();
+
+                    bidReturnDTO = BidReturnDTO.builder()
+                            .returnBidAttemptDTO(returnBidAttemptDTO)
+                            .tryPrice(null)
+                            .build();
+
+                    template.convertAndSend("/sub/product/" + productId, bidReturnDTO);
                 }
             } else {
-                template.convertAndSend("/sub/product/" + productId, returnTokenValidate);
+                ReturnBidAttemptDTO returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                        .returnMessage(returnTokenValidate)
+                        .build();
+
+                BidReturnDTO bidReturnDTO = BidReturnDTO.builder()
+                        .returnBidAttemptDTO(returnBidAttemptDTO)
+                        .tryPrice(null)
+                        .build();
+
+                template.convertAndSend("/sub/product/" + productId, bidReturnDTO);
             }
         } else {
-            template.convertAndSend("/sub/product/" + productId, "requireLogin");
+            ReturnBidAttemptDTO returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                    .returnMessage("requireLogin")
+                    .build();
+
+            BidReturnDTO bidReturnDTO = BidReturnDTO.builder()
+                    .returnBidAttemptDTO(returnBidAttemptDTO)
+                    .tryPrice(null)
+                    .build();
+
+            template.convertAndSend("/sub/product/" + productId, bidReturnDTO);
         }
     }
 
+    @MessageMapping(value = "/product/bidCancel/{productId}")
+    public void bidCancel(@DestinationVariable Long productId, @Payload BidCancelDTO bidCancelDTO) {
+        System.out.println(productId);
 
+        List<BidCancelInfoDTO> bidCancelInfoDTOS = bidCancelDTO.getSelectedBids();
+
+
+
+    }
+
+    //중복되는 부분 메서드화 시킬 예정
 }

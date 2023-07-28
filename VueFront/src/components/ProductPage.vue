@@ -36,7 +36,7 @@
       <div class="try_bid">
         <input type="text" id="text">
         <button class="btn btn-outline-secondary" type="button" id="button-send">입찰</button>
-        <button type="button" id="bid_cancle" ref="bid_cancle" @click="bidCancle()">입찰취소</button>
+        <button type="button" id="bid_cancle" ref="bid_cancle" @click="bidCancel()">입찰취소</button>
       </div>
     </div>
   </div>
@@ -71,7 +71,7 @@ export default {
   },
 
   mounted() {
-    console.log('mounted Product');
+    
     let sockJs = new SockJS('http://localhost:8100/ws');
     this.stomp = Stomp.over(sockJs);
 
@@ -79,8 +79,10 @@ export default {
       this.stomp.subscribe("/sub/product/" + this.productId, (chat) => {
         try {
           let content = JSON.parse(chat.body);
-
-          const returnMessage = content.returnMessage;
+          
+          const returnValue = content.returnBidAttemptDTO;
+          const returnMessage = returnValue.returnMessage;
+          const returnUserNick = returnValue.userNick;
           const tryPrice = content.tryPrice;
 
           if (returnMessage === 'notMatchROLE') {
@@ -88,7 +90,13 @@ export default {
           }
 
           if (returnMessage === 'success') {
-            this.productBidList.push(tryPrice);
+
+            const data = {
+              bidPrice : tryPrice,
+              bidUserName : returnUserNick,
+            }
+
+            this.productBidList.push(data);
             this.productCurrentPrice = tryPrice;
           }
 
@@ -112,6 +120,7 @@ export default {
     btn.addEventListener('click', (e) => {
       const inputElement = document.getElementById('text');
       const value = inputElement.value;
+      
       const userIdNum = sessionStorage.getItem('userIdNum');
       const url = '/pub/product/bid/' + this.productId;
 
@@ -134,15 +143,29 @@ export default {
   },
 
   methods : {
-    bidCancle() {
-      console.log('aa');
+    bidCancel() {
       const userIdNum = sessionStorage.getItem('userIdNum');
 
       if(userIdNum !== null) {
         if(!this.isFirstClick) {
           this.isFirstClick = true;
         }else {
-          console.log(this.selectedBids);
+          if(this.selectedBids.length == 0) {
+            this.isFirstClick = false;
+          } else {
+            console.log(this.selectedBids);
+            const url = '/pub/product/bidCancel/' + this.productId;
+
+            const data = {
+              data: JSON.stringify({
+                selectedBids: this.selectedBids,
+              }),
+              url: url,
+              stomp: this.stomp,
+            };
+
+            this.$store.dispatch('sendBidMessage', data);
+          }
         }
       }else {
         alert('로그인 후 이용해 주세요');

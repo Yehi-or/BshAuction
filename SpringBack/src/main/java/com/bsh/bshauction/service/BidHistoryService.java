@@ -1,5 +1,6 @@
 package com.bsh.bshauction.service;
 
+import com.bsh.bshauction.dto.ReturnBidAttemptDTO;
 import com.bsh.bshauction.entity.Bid;
 import com.bsh.bshauction.entity.BidHistory;
 import com.bsh.bshauction.entity.Product;
@@ -10,7 +11,6 @@ import com.bsh.bshauction.repository.ProductRepository;
 import com.bsh.bshauction.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -35,23 +35,33 @@ public class BidHistoryService {
     //중복 확인, 가격 비교, 입찰 기록 저장, 최고 입찰액 업데이트 등의 작업 모듈화 해야함.
     //이후 RabbitMQ 로 변경시도 예정
     @Transactional
-    public String bidAttempt(Long userId, BigDecimal bidPrice, Long productId) {
+    public ReturnBidAttemptDTO bidAttempt(Long userId, BigDecimal bidPrice, Long productId) {
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
         Product product = productRepository.findById(productId)
                 .orElseThrow(() -> new IllegalArgumentException("Product not found"));
 
+        ReturnBidAttemptDTO returnBidAttemptDTO;
+
         //기존 상품보다 낮은 가격으로 입찰을 시도한지 확인 일단 프론트 단에서 막고 마지막 방어용
         if (product.getPrice().compareTo(bidPrice) > 0) {
-            return "accessFail";
+            returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                    .returnMessage("accessFail")
+                    .userNick(null)
+                    .build();
+            return returnBidAttemptDTO;
         }
 
         // 중복 확인
         long duplicateCount = bidHistoryRepository.countByProductAndAmountAndUser(product, bidPrice, user);
 
         if (duplicateCount > 0) {
-            return "duplicated";
+            returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                    .returnMessage("duplicated")
+                    .userNick(null)
+                    .build();
+            return returnBidAttemptDTO;
         }
 
         BidHistory bidHistory = BidHistory.builder()
@@ -94,11 +104,23 @@ public class BidHistoryService {
                         throw new OptimisticLockException("Concurrent update detected for product with ID: " + productId);
                     }
                 }
-                return "success";
+                returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                        .returnMessage("success")
+                        .userNick(user.getUserNick())
+                        .build();
+                return returnBidAttemptDTO;
             } else {
-                return "fail";
+                returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                        .returnMessage("fail")
+                        .userNick(null)
+                        .build();
+                return returnBidAttemptDTO;
             }
         }
-        return "fail";
+        returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                .returnMessage("fail")
+                .userNick(null)
+                .build();
+        return returnBidAttemptDTO;
     }
 }
