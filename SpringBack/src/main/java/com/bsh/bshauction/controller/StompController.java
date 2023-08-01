@@ -3,6 +3,7 @@ package com.bsh.bshauction.controller;
 import com.bsh.bshauction.dto.*;
 import com.bsh.bshauction.global.security.jwt.JwtTokenProvider;
 import com.bsh.bshauction.service.BidHistoryService;
+import com.bsh.bshauction.service.BidService;
 import com.bsh.bshauction.service.RedisService;
 import com.bsh.bshauction.service.StompService;
 import io.jsonwebtoken.Claims;
@@ -17,6 +18,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -28,6 +30,7 @@ public class StompController {
     private final BidHistoryService bidHistoryService;
     private final StompService stompService;
     private final JwtTokenProvider jwtTokenProvider;
+    private final BidService bidService;
 
     @MessageMapping(value = "/product/bid/{productId}")
     public void enterProduct(@DestinationVariable Long productId, @Payload BidDto bidDto) {
@@ -122,11 +125,35 @@ public class StompController {
 
     @MessageMapping(value = "/product/bidCancel/{productId}")
     public void bidCancel(@DestinationVariable Long productId, @Payload BidCancelDTO bidCancelDTO) {
-        System.out.println(productId);
 
         List<BidCancelInfoDTO> bidCancelInfoDTOS = bidCancelDTO.getSelectedBids();
 
+        if(bidCancelInfoDTOS != null) {
+            boolean isDelete = false;
+            BigDecimal mostHighBidPrice = bidCancelInfoDTOS.get(0).getBidPrice();
 
+            for(int i=0; i<bidCancelInfoDTOS.size(); i++) {
+                BidCancelInfoDTO bidCancelInfoDTO = bidCancelInfoDTOS.get(i);
+
+                if(i >= 1) {
+                    BigDecimal tempHighBidPrice = bidCancelInfoDTO.getBidPrice();
+                    if(tempHighBidPrice.compareTo(mostHighBidPrice) > 0) {
+                        mostHighBidPrice = tempHighBidPrice;
+                    }
+                }
+
+                isDelete = bidService.deleteBidHistory(bidCancelInfoDTO, productId);
+            }
+
+            if(isDelete) {
+                template.convertAndSend("/sub/main/", mostHighBidPrice);
+                template.convertAndSend("/sub/product/" + productId, bidCancelInfoDTOS);
+            } else {
+                template.convertAndSend("/sub/product/" + productId, "errorForBidCancel");
+            }
+        } else {
+            //예외처리
+        }
 
     }
 
