@@ -15,7 +15,8 @@ import java.math.BigDecimal;
 @Slf4j
 @RequiredArgsConstructor
 public class BidService {
-    private final BidHistoryRepositoryImpl bidHistoryRepository;
+    private final BidHistoryRepository bidHistoryRepository;
+    private final BidRepository bidRepository;
 
     @Transactional
     public boolean deleteBidHistory(BidCancelInfoDTO bidCancelInfoDTO, Long productId) {
@@ -25,7 +26,7 @@ public class BidService {
         Long deleteRows = bidHistoryRepository.deleteBidHistoryUserIdAndProductId(userId, productId, bidProductPrice);
 
         if(deleteRows > 0) {
-            Long deleteBidRows = bidHistoryRepository.deleteBidUserIdAndProductId(userId, productId, bidProductPrice);
+            Long deleteBidRows = bidRepository.deleteBidUserIdAndProductId(userId, productId, bidProductPrice);
             return deleteBidRows > 0;
         }
 

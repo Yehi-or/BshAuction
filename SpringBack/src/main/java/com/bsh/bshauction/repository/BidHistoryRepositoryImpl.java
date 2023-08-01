@@ -32,16 +32,4 @@ public class BidHistoryRepositoryImpl implements BidHistoryRepositoryCustom{
                         .and(bidHistory.amount.eq(bidPrice)))
                 .execute();
     }
-
-    @Override
-    public Long deleteBidUserIdAndProductId(Long userId, Long productId, BigDecimal bidPrice) {
-
-        return jpaQueryFactory
-                .delete(bid)
-                .where(bid.user.userId.eq(userId)
-                        .and(bid.product.productId.eq(productId))
-                        .and(bid.amount.eq(bidPrice)))
-                .execute();
-
-    }
 }

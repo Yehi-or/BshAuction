@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
-public interface BidRepository extends JpaRepository<Bid, Long> {
+public interface BidRepository extends JpaRepository<Bid, Long>, BidRepositoryCustom {
 
 //    @Lock(LockModeType.OPTIMISTIC) 조회할때 바로 버전 확인
     @Query("SELECT MAX(amount) FROM Bid WHERE product = :product")

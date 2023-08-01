@@ -15,7 +15,6 @@ import java.math.BigDecimal;
 @RequestMapping("/api/bid")
 @RequiredArgsConstructor
 public class BidController {
-    private final BidHistoryService bidHistoryService;
     private final JwtTokenProvider jwtTokenProvider;
 
     @PostMapping("/accessTokenTest")
