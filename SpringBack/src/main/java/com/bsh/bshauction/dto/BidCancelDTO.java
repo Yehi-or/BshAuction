@@ -11,5 +11,6 @@ import java.util.List;
 @NoArgsConstructor
 public class BidCancelDTO {
     private List<BidCancelInfoDTO> selectedBids;
+    private String bidMessageAccessToken;
 
 }

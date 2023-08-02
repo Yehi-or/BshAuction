@@ -79,7 +79,7 @@ export default {
       this.stomp.subscribe("/sub/product/" + this.productId, (chat) => {
         try {
           let content = JSON.parse(chat.body);
-          
+          console.log(content);
           const returnValue = content.returnBidAttemptDTO;
           const returnMessage = returnValue.returnMessage;
           const returnUserNick = returnValue.userNick;
@@ -153,12 +153,12 @@ export default {
           if(this.selectedBids.length == 0) {
             this.isFirstClick = false;
           } else {
-            console.log(this.selectedBids);
             const url = '/pub/product/bidCancel/' + this.productId;
 
             const data = {
               data: JSON.stringify({
                 selectedBids: this.selectedBids,
+                bidMessageAccessToken: this.$store.getters.getAccessToken,
               }),
               url: url,
               stomp: this.stomp,
