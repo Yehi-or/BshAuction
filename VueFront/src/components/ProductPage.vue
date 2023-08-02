@@ -14,25 +14,26 @@
         </div>
       </div>
       <div class="table_container">
-          <table class="inner_table">
-            <thead>
-              <tr>
-                <th>입찰가</th>
-                <th>입찰자</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(data, index) in productBidList" :key="index">
-                <td>{{ data.bidPrice }}</td>
-                <td>{{ data.bidUserName }}</td>
-                <td>
-                  <input type="checkbox" v-if="isFirstClick && checkMine(data.bidUserName, data.userId)" v-model="selectedBids" :value="data" />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <table class="inner_table">
+          <thead>
+            <tr>
+              <th>입찰가</th>
+              <th>입찰자</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(data, index) in productBidList" :key="index">
+              <td>{{ data.bidPrice }}</td>
+              <td>{{ data.bidUserName }}</td>
+              <td>
+                <input type="checkbox" v-if="isFirstClick && checkMine(data.bidUserName, data.userId)"
+                  v-model="selectedBids" :value="data" />
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-      <div id="result_message"></div>
+      <div id="result_message" ref="result_message"></div>
       <div class="try_bid">
         <input type="text" id="text">
         <button class="btn btn-outline-secondary" type="button" id="button-send">입찰</button>
@@ -55,8 +56,10 @@ export default {
       productBidList: [],
       productName: null,
       productCurrentPrice: null,
-      isFirstClick : false,
-      selectedBids : [],
+      isFirstClick: false,
+      selectedBids: [],
+      bidReturnMessage: null,
+      sendData: null,
     }
   },
   async created() {
@@ -71,7 +74,7 @@ export default {
   },
 
   mounted() {
-    
+
     let sockJs = new SockJS('http://localhost:8100/ws');
     this.stomp = Stomp.over(sockJs);
 
@@ -79,21 +82,48 @@ export default {
       this.stomp.subscribe("/sub/product/" + this.productId, (chat) => {
         try {
           let content = JSON.parse(chat.body);
-          console.log(content);
+
           const returnValue = content.returnBidAttemptDTO;
           const returnMessage = returnValue.returnMessage;
           const returnUserNick = returnValue.userNick;
           const tryPrice = content.tryPrice;
 
-          if (returnMessage === 'notMatchROLE') {
+          const resultElement = this.$refs.result_message;
 
+          if (returnMessage === 'expired') {
+            const refreshToken = this.$store.getters.getRefreshToken;
+
+            this.$store.dispatch('getNewAccessToken', refreshToken);
+            const tokenState = this.$store.getters.getNewAccessTokenState;
+
+            if (tokenState == 200) {
+              this.$store.dispatch('sendBidMessage', this.sendData);
+            } else if (tokenState == 401) {
+              //로그아웃
+            } else if (tokenState == 403) {
+              //다른 작동하게
+            }
+          }
+
+          if (returnMessage === 'notMatchROLE') {
+            this.bidReturnMessage = '권한이 올바르지 않습니다.';
+            resultElement.textContent = this.bidReturnMessage;
+          } else if (returnMessage === 'requireLogin') {
+            alert('로그인이 필요합니다.');
+            this.$router.push('/sign');
+          } else if (returnMessage === 'accessFail') {
+            resultElement.textContent = 'accessFail';
+          } else if (returnMessage === 'duplicated') {
+            resultElement.textContent = 'duplicated';
           }
 
           if (returnMessage === 'success') {
 
+            resultElement.textContent = 'success';
+
             const data = {
-              bidPrice : tryPrice,
-              bidUserName : returnUserNick,
+              bidPrice: tryPrice,
+              bidUserName: returnUserNick,
             }
 
             this.productBidList.push(data);
@@ -104,28 +134,21 @@ export default {
           console.log(err);
         }
 
-        // const listElement = document.querySelector('.bidList');
-
-        // if(listElement) {
-        //   const div = document.createElement('div');
-
-        // }
-
       })
     })
 
     const btn = document.querySelector('#button-send');
-    const cancleBtn = this.$refs.bid_cancle;
 
     btn.addEventListener('click', (e) => {
       const inputElement = document.getElementById('text');
       const value = inputElement.value;
-      
+
       const userIdNum = sessionStorage.getItem('userIdNum');
       const url = '/pub/product/bid/' + this.productId;
 
       if (sessionStorage.getItem("isLoggined") && userIdNum) {
-        const data = {
+
+        this.sendData = {
           data: JSON.stringify({
             userId: userIdNum,
             bidPrice: value,
@@ -142,15 +165,15 @@ export default {
     })
   },
 
-  methods : {
+  methods: {
     bidCancel() {
       const userIdNum = sessionStorage.getItem('userIdNum');
 
-      if(userIdNum !== null) {
-        if(!this.isFirstClick) {
+      if (userIdNum !== null) {
+        if (!this.isFirstClick) {
           this.isFirstClick = true;
-        }else {
-          if(this.selectedBids.length == 0) {
+        } else {
+          if (this.selectedBids.length == 0) {
             this.isFirstClick = false;
           } else {
             const url = '/pub/product/bidCancel/' + this.productId;
@@ -167,7 +190,7 @@ export default {
             this.$store.dispatch('sendBidMessage', data);
           }
         }
-      }else {
+      } else {
         alert('로그인 후 이용해 주세요');
       }
     },
@@ -247,7 +270,7 @@ export default {
   text-align: center;
 }
 
-.try_bid{
+.try_bid {
   margin-top: 20px;
 }
 

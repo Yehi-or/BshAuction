@@ -13,6 +13,7 @@ const store = new Vuex.Store({
     searchRankingList: [],
     userIdNum: null,
     isLoggined : false,
+    newAccessTokenState : 0,
   },
   getters: {
     getAccessToken(state) {
@@ -32,6 +33,9 @@ const store = new Vuex.Store({
     },
     getIsLoggined(state) {
       return state.isLoggined;
+    },
+    getNewAccessTokenState(state) {
+      return state.newAccessTokenState;
     }
   },
   mutations: {
@@ -52,25 +56,26 @@ const store = new Vuex.Store({
     },
     setIsLoggined(state, isLoggined) {
       state.isLoggined = isLoggined;
+    },
+    setNewAccessTokenState(state, newAccessTokenState) {
+      state.newAccessTokenState = newAccessTokenState;
     }
   },
   actions: {
-    async sendBidMessage({getters, dispatch}, data) {
+    async sendBidMessage({}, data) {
       await data.stomp.send(data.url, data.data);
-      // await dispatch('getNewAccessToken', getters.getRefreshToken);
-      // dispatch('sendBidMessage', data);
     },
 
     async getNewAccessToken({commit}, refreshToken) {
       try {
         const result = await axios.post('/api/token/refreshToken', refreshToken);
-        console.log(result.data);
         commit('setAccessToken', result.data);
+        commit('setNewAccessTokenState', 200);
       } catch(err) {
         if(err.response.state === 401) {
-          console.log('만료된 토큰값 로그아웃 부탁');
+          commit('setNewAccessTokenState', 401);
         } else if(err.response.state === 403) {
-          console.log('잘못된 토큰값');
+          commit('setNewAccessTokenState', 403);
         }
       }
     }
