@@ -60,6 +60,8 @@ export default {
       selectedBids: [],
       bidReturnMessage: null,
       sendData: null,
+      isBidTry: false,
+      isBidCancel: false,
     }
   },
   async created() {
@@ -74,7 +76,6 @@ export default {
   },
 
   mounted() {
-
     let sockJs = new SockJS('http://localhost:8100/ws');
     this.stomp = Stomp.over(sockJs);
 
@@ -83,53 +84,82 @@ export default {
         try {
           let content = JSON.parse(chat.body);
 
-          const returnValue = content.returnBidAttemptDTO;
-          const returnMessage = returnValue.returnMessage;
-          const returnUserNick = returnValue.userNick;
-          const tryPrice = content.tryPrice;
+          //경매 try 또는 경매 취소
+          const returnBidTryValue = content.returnBidAttemptDTO;
+          const returnBidCancleList = content.bidCancelInfoDTOList;
 
+          //메세지 엘리먼트
           const resultElement = this.$refs.result_message;
 
-          if (returnMessage === 'expired') {
-            const refreshToken = this.$store.getters.getRefreshToken;
+          //입찰 작업일 때
+          if (returnBidTryValue != null) {
+            //작업 메시지
+            const returnMessage = returnBidTryValue.returnMessage; 
 
-            this.$store.dispatch('getNewAccessToken', refreshToken);
-            const tokenState = this.$store.getters.getNewAccessTokenState;
+            const returnUserNick = returnBidTryValue.userNick;
+            const returnUserId = returnBidTryValue.userId;
+            const tryPrice = content.tryPrice;
 
-            if (tokenState == 200) {
-              this.$store.dispatch('sendBidMessage', this.sendData);
-            } else if (tokenState == 401) {
-              //로그아웃
-            } else if (tokenState == 403) {
-              //다른 작동하게
+            if (returnMessage === 'expired') {
+              const refreshToken = this.$store.getters.getRefreshToken;
+
+              this.$store.dispatch('getNewAccessToken', refreshToken);
+              const tokenState = this.$store.getters.getNewAccessTokenState;
+
+              if (tokenState == 200) {
+                this.$store.dispatch('sendBidMessage', this.sendData);
+              } else if (tokenState == 401) {
+                //로그아웃
+              } else if (tokenState == 403) {
+                //다른 작동하게
+              }
+            }
+
+            if (returnMessage === 'notMatchROLE') {
+              this.bidReturnMessage = '권한이 올바르지 않습니다.';
+              resultElement.textContent = this.bidReturnMessage;
+            } else if (returnMessage === 'requireLogin') {
+              alert('로그인이 필요합니다.');
+              this.$router.push('/sign');
+            } else if (returnMessage === 'accessFail') {
+              resultElement.textContent = 'accessFail';
+            } else if (returnMessage === 'duplicated') {
+              resultElement.textContent = 'duplicated';
+            }
+
+            //성공작업일때
+            if (returnMessage === 'success') {
+              resultElement.textContent = 'success';
+
+              const data = {
+                bidPrice: tryPrice,
+                bidUserName: returnUserNick,
+                userId: returnUserId,
+              }
+
+              this.productBidList.push(data);
+              this.productCurrentPrice = tryPrice;
             }
           }
 
-          if (returnMessage === 'notMatchROLE') {
-            this.bidReturnMessage = '권한이 올바르지 않습니다.';
-            resultElement.textContent = this.bidReturnMessage;
-          } else if (returnMessage === 'requireLogin') {
-            alert('로그인이 필요합니다.');
-            this.$router.push('/sign');
-          } else if (returnMessage === 'accessFail') {
-            resultElement.textContent = 'accessFail';
-          } else if (returnMessage === 'duplicated') {
-            resultElement.textContent = 'duplicated';
-          }
+          //입찰 취소 작업일 때
+          else if (returnBidCancleList != null) {
+            //작업 메시지
+            const returnMessage = content.returnMessage;
+            
+            if(returnMessage === 'bidCancel' && returnBidCancleList.length > 0) {
+             
+              for(let i=0; i<returnBidCancleList.length; i++) {
+                let deleteObject = returnBidCancleList[i];
+                
+                const index = this.productBidList.findIndex(item => item.userId == deleteObject.userId && item.bidPrice == deleteObject.bidPrice && item.bidUserName == deleteObject.bidUserName);
 
-          if (returnMessage === 'success') {
-
-            resultElement.textContent = 'success';
-
-            const data = {
-              bidPrice: tryPrice,
-              bidUserName: returnUserNick,
+                if(index) {
+                  this.productBidList.splice(index, 1);
+                }
+              }
             }
-
-            this.productBidList.push(data);
-            this.productCurrentPrice = tryPrice;
           }
-
         } catch (err) {
           console.log(err);
         }
@@ -140,6 +170,7 @@ export default {
     const btn = document.querySelector('#button-send');
 
     btn.addEventListener('click', (e) => {
+
       const inputElement = document.getElementById('text');
       const value = inputElement.value;
 
@@ -158,7 +189,7 @@ export default {
           stomp: this.stomp,
         };
 
-        this.$store.dispatch('sendBidMessage', data);
+        this.$store.dispatch('sendBidMessage', this.sendData);
       } else {
         alert('로그인 후 이용해 주세요');
       }

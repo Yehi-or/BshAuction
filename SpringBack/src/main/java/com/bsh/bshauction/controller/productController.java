@@ -49,7 +49,7 @@ public class productController {
 
         if(product.isPresent()) {
             List<BidListDTO> bidList = bidRepository.findByProductOrderByAmountAsc(product.get());
-            System.out.println(bidList);
+
             ProductDTO productDTO = ProductDTO.builder()
                     .productName(product.get().getProductName())
                     .price(product.get().getPrice())

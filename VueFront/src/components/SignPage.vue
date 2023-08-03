@@ -1,11 +1,6 @@
 <template>
   <div>
-    <a class="logo" target="_blank">
-      <img src="https://assets.codepen.io/1462889/fcy.png" alt="">
-    </a>
     <h6 class="mb-0 pb-3"><span>Log In </span><span>Sign Up</span></h6>
-    <input class="checkbox_sign" type="checkbox" id="log" name="log" ref="checkbox_sign" />
-    <label for="log"></label>
     <div class="card-3d-wrap mx-auto">
       <div class="card-3d-wrapper">
         <div class="card-front">
@@ -26,7 +21,6 @@
                 <input type="hidden">
                 <button type="submit" class="btn mt-4">Submit</button>
               </form>
-              <p class="mb-0 mt-4 text-center"><a href="#0" class="link">Forgot your password?</a></p>
             </div>
           </div>
         </div>
@@ -90,19 +84,6 @@ export default {
     const signUpForm = this.signUpForm;
     const loginForm = this.loginForm;
 
-    formChange.addEventListener('click', () => {
-      if (this.mode === 'signIn') {
-        signUpForm.nick = '';
-        signUpForm.email = '';
-        signUpForm.password = '';
-        signUpForm.passwordConfirm = '';
-        this.mode = 'signUp';
-      } else if (this.mode === 'signUp') {
-        loginForm.email = '';
-        loginForm.password = '';
-        this.mode = 'signIn';
-      }
-    });
   },
   methods: {
     loginSubmit() {

@@ -11,10 +11,12 @@ import lombok.Setter;
 public class ReturnBidAttemptDTO {
     private String returnMessage;
     private String userNick;
+    private Long userId;
 
     @Builder
-    public ReturnBidAttemptDTO(String returnMessage, String userNick) {
+    public ReturnBidAttemptDTO(String returnMessage, String userNick, Long userId) {
         this.returnMessage = returnMessage;
         this.userNick = userNick;
+        this.userId = userId;
     }
 }

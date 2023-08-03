@@ -4,12 +4,10 @@ import com.bsh.bshauction.dto.*;
 import com.bsh.bshauction.global.security.jwt.JwtTokenProvider;
 import com.bsh.bshauction.service.BidHistoryService;
 import com.bsh.bshauction.service.BidService;
-import com.bsh.bshauction.service.RedisService;
 import com.bsh.bshauction.service.StompService;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -18,7 +16,6 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.math.BigDecimal;
 import java.util.List;
 
 @RestController
@@ -130,21 +127,35 @@ public class StompController {
                     //에러 발생해서 롤백될 수 도 있음....
                     ReturnBidDeleteDTO returnBidDeleteDTO = bidService.deleteBidHistoryAndUpdateProductPrice(bidCancelInfoDTOS, productId);
 
-                    System.out.println(returnBidDeleteDTO.getReturnTypeString());
-
                     if(returnBidDeleteDTO.getReturnTypeString().equals("successUpdateAndDelete")) {
-                        template.convertAndSend("/sub/main/", returnBidDeleteDTO.getUpdateBidPrice());
-                        template.convertAndSend("/sub/product/" + productId, bidCancelInfoDTOS);
+                        template.convertAndSend("/sub/main/", stompService.returnMain(productId, returnBidDeleteDTO.getUpdateBidPrice()));
+
+                        template.convertAndSend("/sub/product/" + productId, BidCancelReturnDTO.builder()
+                                        .bidCancelInfoDTOList(bidCancelInfoDTOS)
+                                        .returnMessage("bidCancel")
+                                        .build());
                     } else if(returnBidDeleteDTO.getReturnTypeString().equals("successDelete")){
-                        template.convertAndSend("/sub/product/" + productId, bidCancelInfoDTOS);
+                        template.convertAndSend("/sub/product/" + productId, BidCancelReturnDTO.builder()
+                                .bidCancelInfoDTOList(bidCancelInfoDTOS)
+                                .returnMessage("bidCancel")
+                                .build());
                     } else {
-                        template.convertAndSend("/sub/product/" + productId, "errorForBidCancel");
+                        template.convertAndSend("/sub/product/" + productId, BidCancelReturnDTO.builder()
+                                .bidCancelInfoDTOList(null)
+                                .returnMessage("errorForBidCancel")
+                                .build());
                     }
                 } else {
-                    template.convertAndSend("/sub/product/" + productId, "notMatchROLE");
+                    template.convertAndSend("/sub/product/" + productId, BidCancelReturnDTO.builder()
+                            .bidCancelInfoDTOList(null)
+                            .returnMessage("notMatchRole")
+                            .build());
                 }
             } else {
-                template.convertAndSend("/sub/product/" + productId, returnTokenValidate);
+                template.convertAndSend("/sub/product/" + productId, BidCancelReturnDTO.builder()
+                        .bidCancelInfoDTOList(null)
+                        .returnMessage(returnTokenValidate)
+                        .build());
             }
         } catch (Exception exception) {
             //예외처리
@@ -153,6 +164,7 @@ public class StompController {
         }
     }
 
+    //토큰에서 userId 를 가져와서 해야하는지 고민중...
     private String compareClaims(String token, Long productId) {
 
         Claims claims = jwtTokenProvider.parseClaims(token);
