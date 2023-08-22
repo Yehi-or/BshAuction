@@ -50,6 +50,7 @@ public class BidHistoryService {
                     .returnMessage("accessFail")
                     .userNick(null)
                     .userId(null)
+                    .endTime(product.getFinishAt())
                     .build();
             return returnBidAttemptDTO;
         }
@@ -62,6 +63,7 @@ public class BidHistoryService {
                     .returnMessage("duplicated")
                     .userNick(null)
                     .userId(null)
+                    .endTime(product.getFinishAt())
                     .build();
             return returnBidAttemptDTO;
         }
@@ -110,6 +112,7 @@ public class BidHistoryService {
                         .returnMessage("success")
                         .userNick(user.getUserNick())
                         .userId(userId)
+                        .endTime(product.getFinishAt())
                         .build();
                 return returnBidAttemptDTO;
             } else {
@@ -117,6 +120,7 @@ public class BidHistoryService {
                         .returnMessage("fail")
                         .userNick(null)
                         .userId(null)
+                        .endTime(product.getFinishAt())
                         .build();
                 return returnBidAttemptDTO;
             }
@@ -125,6 +129,7 @@ public class BidHistoryService {
                 .returnMessage("fail")
                 .userNick(null)
                 .userId(null)
+                .endTime(product.getFinishAt())
                 .build();
         return returnBidAttemptDTO;
     }

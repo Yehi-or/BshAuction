@@ -38,7 +38,7 @@ public class RedisService {
     @Scheduled(fixedRate = 60 * 60 * 1000)
     public void getAverageSearchFrequencyForOneHour() {
         log.info("--Start Scheduled--");
-        getAverageSearchFrequencyForOneHours();
+//        getAverageSearchFrequencyForOneHours();
         log.info("--End Scheduled--");
     }
 
@@ -47,7 +47,7 @@ public class RedisService {
         log.info("--update search ranking--");
         List<String> rankingList = searchRankingList();
         if(rankingList != null) {
-            template.convertAndSend("/sub/search/ranking/", rankingList);
+//            template.convertAndSend("/sub/search/ranking/", rankingList);
         }
     }
 
@@ -85,6 +85,7 @@ public class RedisService {
             log.info("averageSearchFrequency : {}", averageSearchFrequency);
 
             if(averageSearchFrequency > 0) {
+
                 for (ZSetOperations.TypedTuple<String> searchKeyword : searchKeywords) {
                     keyword = searchKeyword.getValue();
                     searchFrequency = searchKeyword.getScore();

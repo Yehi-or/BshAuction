@@ -2,12 +2,17 @@ package com.bsh.bshauction.controller;
 
 import com.bsh.bshauction.dto.*;
 import com.bsh.bshauction.global.security.jwt.JwtTokenProvider;
+import com.bsh.bshauction.repository.ProductRepository;
 import com.bsh.bshauction.service.BidHistoryService;
 import com.bsh.bshauction.service.BidService;
 import com.bsh.bshauction.service.StompService;
 import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.core.RabbitAdmin;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -16,7 +21,10 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
 @RestController
 @RequiredArgsConstructor
@@ -28,87 +36,134 @@ public class StompController {
     private final StompService stompService;
     private final JwtTokenProvider jwtTokenProvider;
     private final BidService bidService;
+    private final RabbitTemplate rabbitTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
+    private final ProductRepository productRepository;
 
-    @MessageMapping(value = "/product/bid/{productId}")
+    @MessageMapping(value = "product.bid.{productId}")
     public void enterProduct(@DestinationVariable Long productId, @Payload BidDto bidDto) {
-        //이 메서드는 에러 핸들러로 에러 잡을 예정 아니면 그냥 try catch
-        log.info("Message productId : {}, try price : {}, accessToken : {}", productId, bidDto.getBidPrice(), bidDto.getBidMessageAccessToken());
+        try {
+            log.info("Message productId : {}, try price : {}, accessToken : {}", productId, bidDto.getBidPrice(), bidDto.getBidMessageAccessToken());
 
-        String token = bidDto.getBidMessageAccessToken();
+            LocalDateTime currentTime = LocalDateTime.now();
+            String token = bidDto.getBidMessageAccessToken();
 
-        if(StringUtils.hasText(token) && token.startsWith("Bearer")) {
-            token = token.substring(7);
-        }
+            if(StringUtils.hasText(token) && token.startsWith("Bearer")) {
+                token = token.substring(7);
+            }
 
-        String returnTokenValidate = jwtTokenProvider.customValidateToken(token);
+            String returnTokenValidate = jwtTokenProvider.customValidateToken(token);
 
-        if(token != null) {
-            if(returnTokenValidate.equals("success")) {
-                String roleObject = compareClaims(token, productId);
+            if(token != null) {
+                if(returnTokenValidate.equals("success")) {
 
-                BidReturnDTO bidReturnDTO;
+                    String roleObject = compareClaims(token, productId);
+                    BidReturnDTO bidReturnDTO;
 
-                if(roleObject.contains("ROLE_USER")) {
-                    ReturnBidAttemptDTO returnType = bidHistoryService.bidAttempt(bidDto.getUserId(), bidDto.getBidPrice(), productId);
+                    if(roleObject.contains("ROLE_USER")) {
+                        ReturnBidAttemptDTO returnType = bidHistoryService.bidAttempt(bidDto.getUserId(), bidDto.getBidPrice(), productId);
+                        LocalDateTime finishTime = returnType.getEndTime();
 
-                    if(returnType.getReturnMessage().equals("success")) {
-                        //경매 상세페이지 변경
-                        bidReturnDTO = BidReturnDTO.builder()
-                                .returnBidAttemptDTO(returnType)
-                                .tryPrice(bidDto.getBidPrice())
+                        if(currentTime.isBefore(finishTime)) {
+                            Duration duration = Duration.between(currentTime, finishTime);
+                            long secondsDifference = duration.getSeconds();
+
+                            if(secondsDifference <= 5) {
+                                LocalDateTime newUpdateTime = finishTime.plusMinutes(10);
+                                productRepository.updateFinishAt(productId, newUpdateTime);
+                            }
+
+                            if(returnType.getReturnMessage().equals("success")) {
+                                //redis 로 중복값 없이 해당 상품에 입찰한 유저 정보 저장.
+                                redisTemplate.opsForZSet().add("product" + productId, (bidDto.getUserId()).toString(), 0);
+                                log.info(Objects.requireNonNull(redisTemplate.opsForZSet().range("product2", 0, -1)).toString());
+
+                                //경매 상세페이지 변경
+                                bidReturnDTO = BidReturnDTO.builder()
+                                        .returnBidAttemptDTO(returnType)
+                                        .tryPrice(bidDto.getBidPrice())
+                                        .userId(bidDto.getUserId())
+                                        .build();
+                                rabbitTemplate.convertAndSend("main.Exchange", "main", stompService.returnMain(productId, bidDto.getBidPrice()));
+
+                            } else {
+
+                                bidReturnDTO = BidReturnDTO.builder()
+                                        .returnBidAttemptDTO(returnType)
+                                        .tryPrice(null)
+                                        .userId(bidDto.getUserId())
+                                        .build();
+                            }
+
+                            //상품 식별자와 가격 추가해서 메인에서도 해당 상품의 가격이 변동 될 수 있게
+                            bidReturnDTO.getReturnBidAttemptDTO().setEndTime(null);
+                            rabbitTemplate.convertAndSend("amq.topic", "productId." + productId, bidReturnDTO);
+                        } else if(currentTime.isAfter(finishTime)) {
+
+                            ReturnBidAttemptDTO returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                                    .returnMessage("timeOver")
+                                    .build();
+
+                            bidReturnDTO = BidReturnDTO.builder()
+                                    .returnBidAttemptDTO(returnBidAttemptDTO)
+                                    .tryPrice(null)
+                                    .userId(bidDto.getUserId())
+                                    .build();
+
+                            bidReturnDTO.getReturnBidAttemptDTO().setEndTime(null);
+                            rabbitTemplate.convertAndSend("amq.topic", "productId." + productId, bidReturnDTO);
+                        }
+
+                    }else {
+                        ReturnBidAttemptDTO returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                                .returnMessage("notMatchROLE")
                                 .build();
 
-                        template.convertAndSend("/sub/main/", stompService.returnMain(productId, bidDto.getBidPrice()));
-
-                    } else {
-
                         bidReturnDTO = BidReturnDTO.builder()
-                                .returnBidAttemptDTO(returnType)
+                                .returnBidAttemptDTO(returnBidAttemptDTO)
                                 .tryPrice(null)
+                                .userId(bidDto.getUserId())
                                 .build();
-                    }
 
-                    //상품 식별자와 가격 추가해서 메인에서도 해당 상품의 가격이 변동 될 수 있게
-                    template.convertAndSend("/sub/product/" + productId, bidReturnDTO);
-                }else {
+                        bidReturnDTO.getReturnBidAttemptDTO().setEndTime(null);
+                        rabbitTemplate.convertAndSend("amq.topic", "productId." + productId, bidReturnDTO);
+                    }
+                } else {
                     ReturnBidAttemptDTO returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
-                            .returnMessage("notMatchROLE")
+                            .returnMessage(returnTokenValidate)
                             .build();
 
-                    bidReturnDTO = BidReturnDTO.builder()
+                    BidReturnDTO bidReturnDTO = BidReturnDTO.builder()
                             .returnBidAttemptDTO(returnBidAttemptDTO)
                             .tryPrice(null)
+                            .userId(bidDto.getUserId())
                             .build();
 
-                    template.convertAndSend("/sub/product/" + productId, bidReturnDTO);
+                    bidReturnDTO.getReturnBidAttemptDTO().setEndTime(null);
+                    rabbitTemplate.convertAndSend("amq.topic", "productId." + productId, bidReturnDTO);
                 }
             } else {
                 ReturnBidAttemptDTO returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
-                        .returnMessage(returnTokenValidate)
+                        .returnMessage("requireLogin")
                         .build();
 
                 BidReturnDTO bidReturnDTO = BidReturnDTO.builder()
                         .returnBidAttemptDTO(returnBidAttemptDTO)
                         .tryPrice(null)
+                        .userId(bidDto.getUserId())
                         .build();
 
-                template.convertAndSend("/sub/product/" + productId, bidReturnDTO);
+                bidReturnDTO.getReturnBidAttemptDTO().setEndTime(null);
+                rabbitTemplate.convertAndSend("amq.topic", "productId." + productId, bidReturnDTO);
             }
-        } else {
-            ReturnBidAttemptDTO returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
-                    .returnMessage("requireLogin")
-                    .build();
-
-            BidReturnDTO bidReturnDTO = BidReturnDTO.builder()
-                    .returnBidAttemptDTO(returnBidAttemptDTO)
-                    .tryPrice(null)
-                    .build();
-
-            template.convertAndSend("/sub/product/" + productId, bidReturnDTO);
+        } catch(Exception e) {
+            //예외처리
+            //OptimisticLockException 이 올 예정
+            log.info("error" + e);
         }
     }
 
-    @MessageMapping(value = "/product/bidCancel/{productId}")
+    @MessageMapping(value = "/product.bidCancel.{productId}")
     public void bidCancel(@DestinationVariable Long productId, @Payload BidCancelDTO bidCancelDTO) {
         try {
             List<BidCancelInfoDTO> bidCancelInfoDTOS = bidCancelDTO.getSelectedBids();
@@ -122,37 +177,38 @@ public class StompController {
 
             if(bidCancelInfoDTOS != null && returnTokenValidate.equals("success")) {
                 String roleObject = compareClaims(token, productId);
+                int listSize = bidCancelInfoDTOS.size();
 
                 if(roleObject.contains("ROLE_USER")) {
                     //에러 발생해서 롤백될 수 도 있음....
-                    ReturnBidDeleteDTO returnBidDeleteDTO = bidService.deleteBidHistoryAndUpdateProductPrice(bidCancelInfoDTOS, productId);
+                    ReturnBidDeleteDTO returnBidDeleteDTO = bidService.deleteBidHistoryAndUpdateProductPrice(bidCancelInfoDTOS, productId, listSize);
 
                     if(returnBidDeleteDTO.getReturnTypeString().equals("successUpdateAndDelete")) {
-                        template.convertAndSend("/sub/main/", stompService.returnMain(productId, returnBidDeleteDTO.getUpdateBidPrice()));
+                        rabbitTemplate.convertAndSend("main.Exchange", "main", stompService.returnMain(productId, returnBidDeleteDTO.getUpdateBidPrice()));
 
-                        template.convertAndSend("/sub/product/" + productId, BidCancelReturnDTO.builder()
-                                        .bidCancelInfoDTOList(bidCancelInfoDTOS)
-                                        .returnMessage("bidCancel")
-                                        .build());
+                        rabbitTemplate.convertAndSend("amq.topic", "productId." + productId, BidCancelReturnDTO.builder()
+                                .bidCancelInfoDTOList(bidCancelInfoDTOS)
+                                .returnMessage("bidCancel")
+                                .build());
                     } else if(returnBidDeleteDTO.getReturnTypeString().equals("successDelete")){
-                        template.convertAndSend("/sub/product/" + productId, BidCancelReturnDTO.builder()
+                        rabbitTemplate.convertAndSend("amq.topic", "productId." + productId, BidCancelReturnDTO.builder()
                                 .bidCancelInfoDTOList(bidCancelInfoDTOS)
                                 .returnMessage("bidCancel")
                                 .build());
                     } else {
-                        template.convertAndSend("/sub/product/" + productId, BidCancelReturnDTO.builder()
+                        rabbitTemplate.convertAndSend("amq.topic", "productId." + productId, BidCancelReturnDTO.builder()
                                 .bidCancelInfoDTOList(null)
                                 .returnMessage("errorForBidCancel")
                                 .build());
                     }
                 } else {
-                    template.convertAndSend("/sub/product/" + productId, BidCancelReturnDTO.builder()
+                    rabbitTemplate.convertAndSend("amq.topic", "productId." + productId, BidCancelReturnDTO.builder()
                             .bidCancelInfoDTOList(null)
                             .returnMessage("notMatchRole")
                             .build());
                 }
             } else {
-                template.convertAndSend("/sub/product/" + productId, BidCancelReturnDTO.builder()
+                rabbitTemplate.convertAndSend("amq.topic", "productId." + productId, BidCancelReturnDTO.builder()
                         .bidCancelInfoDTOList(null)
                         .returnMessage(returnTokenValidate)
                         .build());
@@ -160,7 +216,7 @@ public class StompController {
         } catch (Exception exception) {
             //예외처리
             //OptimisticLockException 이 올 예정
-            System.out.println("error 발생 재시도 부탁");
+            System.out.println("bid_cancel 에러 발생 재시도 부탁");
         }
     }
 
@@ -184,5 +240,9 @@ public class StompController {
         return (String) roleObject;
     }
 
-    //중복되는 부분 메서드화 시킬 예정
+    @RabbitListener(queues = "bshAuction_bid")
+    private void consumer() {
+
+        System.out.println("큐에 등록 되셨습니다.");
+    }
 }

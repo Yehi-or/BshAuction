@@ -1,5 +1,6 @@
 package com.bsh.bshauction.controller;
 
+import com.bsh.bshauction.dto.BidEndTimeDTO;
 import com.bsh.bshauction.dto.BidListDTO;
 import com.bsh.bshauction.dto.ProductDTO;
 import com.bsh.bshauction.dto.ProductListDTO;
@@ -12,6 +13,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -59,6 +61,26 @@ public class productController {
             return ResponseEntity.ok().body(productDTO);
         }
         return null;
+    }
+
+    @GetMapping("/bidEndTime/{productId}")
+    public ResponseEntity<BidEndTimeDTO> getBidEndTime(@PathVariable Long productId) {
+
+        log.info("---productId : {}", productId);
+        Optional<Product> product = productRepository.findById(productId);
+
+        if(product.isPresent()) {
+            LocalDateTime bidEndTime = product.get().getFinishAt();
+            LocalDateTime currentTime = LocalDateTime.now();
+
+            BidEndTimeDTO bidEndTimeDTO = BidEndTimeDTO.builder()
+                    .bidEndTime(bidEndTime)
+                    .currentTime(currentTime)
+                    .build();
+
+            return ResponseEntity.ok().body(bidEndTimeDTO);
+        }
+        return ResponseEntity.status(404).body(BidEndTimeDTO.builder().build());
     }
 
 }

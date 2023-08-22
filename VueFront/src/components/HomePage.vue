@@ -36,7 +36,7 @@ export default {
     this.stomp = Stomp.over(sockJs);
 
     this.stomp.connect({}, () => {
-      this.stomp.subscribe("/sub/main/", (data) => {
+      this.stomp.subscribe("/amq/queue/main", (data) => {
         let content = JSON.parse(data.body);
 
         const productId = content.productId;

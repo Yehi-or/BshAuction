@@ -11,6 +11,7 @@
       <div id="fifth">
         <div class="emojiright">
           <p class="coffeename"> 상품명 : {{ this.productName }}</p>
+          <p>경매 종료까지 남은 시간: {{ formattedTime }}</p>
         </div>
       </div>
       <div class="table_container">
@@ -62,28 +63,65 @@ export default {
       sendData: null,
       isBidTry: false,
       isBidCancel: false,
+      currentTime: null,
+      bidEndTime: null,
+      interval: null,
+      timeRemain: null,
+      seconds: 0,
+      minutes: 0,
     }
   },
-  async created() {
 
+  async created() {
     this.productId = this.$route.params.id;
     const detailProductList = await axios.get('/api/product/' + this.productId);
+    const timeResult = await axios.get('/api/product/bidEndTime/' + this.productId);
+
+    this.currentTime = timeResult.data.currentTime;
+    this.bidEndTime = timeResult.data.bidEndTime;
+
+    const endTime = new Date(this.bidEndTime).getTime();
+    const now = new Date(this.currentTime).getTime();
+    this.timeRemain =  Math.max(endTime - now, 0);
 
     this.productBidList = detailProductList.data.bidList;
     this.productName = detailProductList.data.productName;
     this.productCurrentPrice = detailProductList.data.price;
 
   },
+  computed : {
+    
+    timeRemaining() {
+      const endTime = new Date(this.bidEndTime).getTime();
+      const now = new Date(this.currentTime).getTime();
+      return Math.max(endTime - now, 0);
+    },
+
+    formattedTime() {
+      this.seconds = Math.floor(this.timeRemain / 1000);
+      this.minutes = Math.floor(this.seconds / 60);
+      const hours = Math.floor(this.minutes / 60);
+      const days = Math.floor(hours / 24);
+
+      const remainingHours = hours % 24;
+      const remainingMinutes = this.minutes % 60;
+      const remainingSeconds = this.seconds % 60;
+
+      return `${days}일 ${remainingHours}시간 ${remainingMinutes}분 ${remainingSeconds}초`;
+    },
+  },
 
   mounted() {
+    this.updateTimer();
+
     let sockJs = new SockJS('http://localhost:8100/ws');
     this.stomp = Stomp.over(sockJs);
 
     this.stomp.connect({}, () => {
-      this.stomp.subscribe("/sub/product/" + this.productId, (chat) => {
+      this.stomp.subscribe('/topic/productId.' + this.productId, (chat) => {
         try {
           let content = JSON.parse(chat.body);
-
+          console.log(content);
           //경매 try 또는 경매 취소
           const returnBidTryValue = content.returnBidAttemptDTO;
           const returnBidCancleList = content.bidCancelInfoDTOList;
@@ -115,21 +153,35 @@ export default {
               }
             }
 
-            if (returnMessage === 'notMatchROLE') {
-              this.bidReturnMessage = '권한이 올바르지 않습니다.';
-              resultElement.textContent = this.bidReturnMessage;
-            } else if (returnMessage === 'requireLogin') {
-              alert('로그인이 필요합니다.');
-              this.$router.push('/sign');
-            } else if (returnMessage === 'accessFail') {
-              resultElement.textContent = 'accessFail';
-            } else if (returnMessage === 'duplicated') {
-              resultElement.textContent = 'duplicated';
+            const userId = content.userId;
+            
+            if(userId == sessionStorage.getItem('userIdNum')) {
+                if (returnMessage === 'notMatchROLE') {
+                this.bidReturnMessage = '권한이 올바르지 않습니다.';
+                resultElement.textContent = this.bidReturnMessage;
+              } else if (returnMessage === 'requireLogin') {
+                alert('로그인이 필요합니다.');
+                this.$router.push('/sign');
+              } else if (returnMessage === 'accessFail') {
+                resultElement.textContent = 'accessFail';
+              } else if (returnMessage === 'duplicated') {
+                resultElement.textContent = 'duplicated';
+              }
+
             }
 
             //성공작업일때
             if (returnMessage === 'success') {
-              resultElement.textContent = 'success';
+              
+              if(userId == sessionStorage.getItem('userIdNum')) {
+                resultElement.textContent = 'success';
+              }
+
+              //10분 미만 입찰 시도 성공했을 때
+              if(this.timeRemain < 600000) {
+                //알림 요청 axios
+                axios.post('/api/bid/bidExtension/' + this.productId);
+              }
 
               const data = {
                 bidPrice: tryPrice,
@@ -175,7 +227,7 @@ export default {
       const value = inputElement.value;
 
       const userIdNum = sessionStorage.getItem('userIdNum');
-      const url = '/pub/product/bid/' + this.productId;
+      const url = '/pub/product.bid.' + this.productId;
 
       if (sessionStorage.getItem("isLoggined") && userIdNum) {
 
@@ -207,7 +259,7 @@ export default {
           if (this.selectedBids.length == 0) {
             this.isFirstClick = false;
           } else {
-            const url = '/pub/product/bidCancel/' + this.productId;
+            const url = '/pub/product.bidCancel.' + this.productId;
 
             const data = {
               data: JSON.stringify({
@@ -225,6 +277,19 @@ export default {
         alert('로그인 후 이용해 주세요');
       }
     },
+    updateTimer() {
+      this.interval = setInterval(() => {
+        this.timeRemain -= 1000;
+
+        if (this.timeRemain === 0) {
+          clearInterval(this.interval);
+          axios.post('/api/bid/bidEnd');
+          return;
+        }
+
+      }, 1000); // 1초마다 업데이트
+    },
+
     checkMine(userName, userId) {
       const userIdNum = sessionStorage.getItem('userIdNum');
       return userIdNum == userId;

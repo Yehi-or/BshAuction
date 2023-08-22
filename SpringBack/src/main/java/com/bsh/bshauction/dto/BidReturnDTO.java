@@ -12,4 +12,5 @@ import java.math.BigDecimal;
 public class BidReturnDTO {
     private ReturnBidAttemptDTO returnBidAttemptDTO;
     private BigDecimal tryPrice;
+    private Long userId;
 }

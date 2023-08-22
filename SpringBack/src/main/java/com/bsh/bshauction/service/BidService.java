@@ -9,12 +9,15 @@ import com.bsh.bshauction.repository.BidRepository;
 import com.bsh.bshauction.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.OptimisticLockException;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 @Service
 @Slf4j
@@ -23,8 +26,9 @@ public class BidService {
     private final BidHistoryRepository bidHistoryRepository;
     private final BidRepository bidRepository;
     private final ProductRepository productRepository;
+    RedisTemplate<String, String> redisTemplate;
 
-    public boolean deleteBidHistory(BidCancelInfoDTO bidCancelInfoDTO, Long productId) {
+    public boolean deleteBidHistory(BidCancelInfoDTO bidCancelInfoDTO, Long productId, int listSize) {
         Long userId = bidCancelInfoDTO.getUserId();
         BigDecimal bidProductPrice = bidCancelInfoDTO.getBidPrice();
 
@@ -32,6 +36,12 @@ public class BidService {
 
         if (deleteRows > 0) {
             Long deleteBidRows = bidRepository.deleteBidUserIdAndProductId(userId, productId, bidProductPrice);
+
+            if(listSize == deleteBidRows) {
+                redisTemplate.opsForZSet().remove("product" + productId, userId.toString());
+                log.info(Objects.requireNonNull(redisTemplate.opsForZSet().range("product2", 0, -1)).toString());
+            }
+
             return deleteBidRows > 0;
         }
 
@@ -76,7 +86,7 @@ public class BidService {
     }
 
     @Transactional
-    public ReturnBidDeleteDTO deleteBidHistoryAndUpdateProductPrice(List<BidCancelInfoDTO> bidCancelInfoDTOS, Long productId) {
+    public ReturnBidDeleteDTO deleteBidHistoryAndUpdateProductPrice(List<BidCancelInfoDTO> bidCancelInfoDTOS, Long productId, int listSize) {
 
         boolean isDelete = false;
 
@@ -92,7 +102,7 @@ public class BidService {
                 }
             }
 
-            isDelete = deleteBidHistory(bidCancelInfoDTO, productId);
+            isDelete = deleteBidHistory(bidCancelInfoDTO, productId, listSize);
         }
 
         ReturnUpdateProductBidDTO returnUpdateProductBidDTO = updateProductPriceCurrently(productId, mostHighBidPrice);

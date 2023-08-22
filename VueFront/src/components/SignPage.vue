@@ -77,13 +77,12 @@ export default {
         passwordConfirm: '',
       },
       loginMessage: '',
+      stomp: null,
     }
   },
   mounted() {
-    const formChange = this.$refs.checkbox_sign;
-    const signUpForm = this.signUpForm;
-    const loginForm = this.loginForm;
-
+    let sockJs = new SockJS('http://localhost:8100/ws');
+    this.stomp = Stomp.over(sockJs);
   },
   methods: {
     loginSubmit() {
@@ -99,6 +98,15 @@ export default {
           sessionStorage.setItem('userNick', response.data.userNick)
           sessionStorage.setItem('userIdNum', response.data.userId)
           sessionStorage.setItem('isLoggined', true);
+
+          //개별 큐 (알림을 받을 예정)
+          this.stomp.connect({}, () => {
+            this.stomp.subscribe("/topic/userId." + sessionStorage.getItem('userIdNum'), (data) => {
+              let content = JSON.parse(data.body);
+              console.log(content);
+            })
+          })
+
           this.loginMessage = response.data.loginMessage;
           console.log(this.loginMessage);
           this.$router.push('/');
