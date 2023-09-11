@@ -3,9 +3,9 @@ package com.bsh.bshauction.service;
 import com.bsh.bshauction.dto.SearchRankingDTO;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ZSetOperations;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -19,8 +19,9 @@ public class RedisService {
     private final RedisTemplate<String, String> redisTemplate;
     private static final String SEARCH_WEIGHT_PREFIX = "search_weight:";
     private double totalSearchFrequency = 0;
-    private final SimpMessagingTemplate template;
+    private final RabbitTemplate rabbitTemplate;
 
+    //검색 메소드
     @Async
     public void doSearch(String keyword) {
 
@@ -38,7 +39,7 @@ public class RedisService {
     @Scheduled(fixedRate = 60 * 60 * 1000)
     public void getAverageSearchFrequencyForOneHour() {
         log.info("--Start Scheduled--");
-//        getAverageSearchFrequencyForOneHours();
+        getAverageSearchFrequencyForOneHours();
         log.info("--End Scheduled--");
     }
 
@@ -47,7 +48,7 @@ public class RedisService {
         log.info("--update search ranking--");
         List<String> rankingList = searchRankingList();
         if(rankingList != null) {
-//            template.convertAndSend("/sub/search/ranking/", rankingList);
+            rabbitTemplate.convertAndSend("message_exchange", "delivery_message", rankingList);
         }
     }
 

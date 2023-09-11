@@ -61,6 +61,8 @@
 
 <script>
 import axios from 'axios';
+import SockJS from 'sockjs-client';
+import Stomp from 'webstomp-client';
 
 export default {
   data() {
@@ -81,8 +83,6 @@ export default {
     }
   },
   mounted() {
-    let sockJs = new SockJS('http://localhost:8100/ws');
-    this.stomp = Stomp.over(sockJs);
   },
   methods: {
     loginSubmit() {
@@ -93,11 +93,15 @@ export default {
 
       axios.post('/api/user/signIn', data)
         .then(response => {
+          console.log(response.data.accessToken);
           this.$store.commit('setAccessToken', response.data.accessToken);
           this.$store.commit('setRefreshToken', response.data.refreshToken);
-          sessionStorage.setItem('userNick', response.data.userNick)
-          sessionStorage.setItem('userIdNum', response.data.userId)
+          sessionStorage.setItem('userNick', response.data.userNick);
+          sessionStorage.setItem('userIdNum', response.data.userId);
           sessionStorage.setItem('isLoggined', true);
+
+          let sockJs = new SockJS('http://localhost:8100/ws');
+          this.stomp = Stomp.over(sockJs);
 
           //개별 큐 (알림을 받을 예정)
           this.stomp.connect({}, () => {
@@ -116,7 +120,6 @@ export default {
         });
     },
     signUpSubmit() {
-
       const data = {
         userNick: this.signUpForm.nick,
         userEmail: this.signUpForm.email,

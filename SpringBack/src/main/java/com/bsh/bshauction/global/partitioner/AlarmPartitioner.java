@@ -20,7 +20,12 @@ public class AlarmPartitioner implements Partitioner {
 
         Map<String, ExecutionContext> result = new HashMap<>();
         int partitionIndex = 0;
-        int calcSize = Math.toIntExact(size);
+        int calcSize = 0;
+
+        if(size != null) {
+            calcSize = Math.toIntExact(size);
+        }
+
         int calcGridSize = gridSize;
 
         int start = 0;

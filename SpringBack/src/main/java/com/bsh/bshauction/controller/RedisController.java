@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class RedisController {
     private final RedisService redisService;
     @GetMapping("/{keyword}")
-    public void test(@PathVariable String keyword) {
+    public void doSearch(@PathVariable String keyword) {
         redisService.doSearch(keyword);
     }
+
 }

@@ -69,6 +69,7 @@ export default {
       timeRemain: null,
       seconds: 0,
       minutes: 0,
+      firstAlarm: true,
     }
   },
 
@@ -90,7 +91,6 @@ export default {
 
   },
   computed : {
-    
     timeRemaining() {
       const endTime = new Date(this.bidEndTime).getTime();
       const now = new Date(this.currentTime).getTime();
@@ -107,11 +107,17 @@ export default {
       const remainingMinutes = this.minutes % 60;
       const remainingSeconds = this.seconds % 60;
 
+      //1분 까지 받고 나머지는 정리시간
       return `${days}일 ${remainingHours}시간 ${remainingMinutes}분 ${remainingSeconds}초`;
     },
   },
 
   mounted() {
+    if (this.timeRemain == 0) {
+      //알림 요청 axios
+      axios.post('/api/bid/bidExtension/' + this.productId);
+    }
+
     this.updateTimer();
 
     let sockJs = new SockJS('http://localhost:8100/ws');
@@ -172,15 +178,8 @@ export default {
 
             //성공작업일때
             if (returnMessage === 'success') {
-              
               if(userId == sessionStorage.getItem('userIdNum')) {
                 resultElement.textContent = 'success';
-              }
-
-              //10분 미만 입찰 시도 성공했을 때
-              if(this.timeRemain < 600000) {
-                //알림 요청 axios
-                axios.post('/api/bid/bidExtension/' + this.productId);
               }
 
               const data = {

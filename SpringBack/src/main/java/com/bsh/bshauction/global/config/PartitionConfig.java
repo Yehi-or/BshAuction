@@ -2,6 +2,8 @@ package com.bsh.bshauction.global.config;
 
 import com.bsh.bshauction.global.partitioner.AlarmPartitioner;
 import com.bsh.bshauction.global.partitioner.CustomItemReader;
+import com.bsh.bshauction.global.partitioner.CustomJobListener;
+import com.bsh.bshauction.global.partitioner.CustomJobParametersIncrementer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.batch.core.Job;
@@ -27,7 +29,7 @@ import java.util.Set;
 @RequiredArgsConstructor
 @Slf4j
 public class PartitionConfig {
-    private final RedisTemplate<String, String> redisTemplate;
+    private final RedisTemplate<String, Object> redisTemplate;
     private final JobBuilderFactory jobBuilderFactory;
     private final StepBuilderFactory stepBuilderFactory;
     private final RabbitTemplate rabbitTemplate;
@@ -69,7 +71,9 @@ public class PartitionConfig {
     @Bean(name = JOB_NAME)
     public Job partitionLocalBatch() {
         return jobBuilderFactory.get(JOB_NAME)
+//                .incrementer(new CustomJobParametersIncrementer())
                 .start(step1Manager())
+                .listener(new CustomJobListener(redisTemplate))
 //                .preventRestart()
                 .build();
     }
@@ -86,7 +90,7 @@ public class PartitionConfig {
     @Bean(name = JOB_NAME + "_step")
     public Step step1() {
         return stepBuilderFactory.get(JOB_NAME + "_step")
-                .chunk(1)
+                .chunk(100)
                 .reader(reader(null, null, null))
                 .writer(writer())
                 .build();
@@ -94,17 +98,18 @@ public class PartitionConfig {
 
     @Bean(name = JOB_NAME + "_reader")
     @StepScope
-    public ItemReader<Set<String>> reader(@Value("#{jobParameters['productId']}") Long productId, @Value("#{stepExecutionContext['start_index']}") Long startIndex
+    public ItemReader<Object> reader(@Value("#{jobParameters['productId']}") Long productId, @Value("#{stepExecutionContext['start_index']}") Long startIndex
     , @Value("#{stepExecutionContext['end_index']}") Long endIndex) {
 
         if(startIndex != null && endIndex != null) {
-            Set<String> alarmList = redisTemplate.opsForZSet().range("product" + productId, startIndex, endIndex);
+            Set<Object> alarmList = redisTemplate.opsForZSet().range("product" + productId, startIndex, endIndex);
+
             log.info("min : {}, max : {}", startIndex, endIndex);
 
             if(alarmList != null) {
                 log.info("reader size : {}", alarmList.size());
-                Iterator<String> alarmIterator = alarmList.iterator();
-                return () -> alarmIterator.hasNext() ? Collections.singleton(alarmIterator.next()) : null;
+                Iterator<Object> alarmIterator = alarmList.iterator();
+                return () -> alarmIterator.hasNext() ? alarmIterator.next() : null;
             }
         }
         return null;
@@ -115,10 +120,10 @@ public class PartitionConfig {
     public ItemWriter<Object> writer() {
         return items -> {
             for(Object item : items) {
-                log.info(items.toString());
                 if(item != null) {
-                    log.info("message user Id : {}", item);
-                    rabbitTemplate.convertAndSend("amq.topic", "userId." + item, "상품 경매 시간이 증가 했습니다.");
+                    String userId = item.toString();
+                    log.info("message user Id : userId.{}", userId);
+                    rabbitTemplate.convertAndSend("amq.topic", "userId." + userId, "상품 경매 시간이 증가 했습니다.");
                 }else {
                     log.info("item is null");
                 }

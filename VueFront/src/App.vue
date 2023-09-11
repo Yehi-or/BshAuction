@@ -38,8 +38,11 @@ export default {
     this.stomp = Stomp.over(sockJs);
 
     this.stomp.connect({}, () => {
-      this.stomp.subscribe("/sub/search/ranking/", (data) => {
+      this.stomp.subscribe("/amq/queue/bshAuction_message", (data) => {
         let rankingList = JSON.parse(data.body);
+
+        console.log(rankingList);
+
         if(rankingList) {
           this.$store.commit('setSearchRankingList', rankingList);
         }

@@ -85,8 +85,8 @@ public class UserService {
 
     @Transactional
     public ResponseEntity<String> userSignUp(UserSignUpDto userSignUpDto) {
-        System.out.println(userSignUpDto.getUserEmail());
-        System.out.println(userSignUpDto.getUserNick());
+        log.info(userSignUpDto.getUserEmail());
+        log.info(userSignUpDto.getUserNick());
 
         Optional<User> existingUser = userRepository.findUserByUserEmail(userSignUpDto.getUserEmail());
 
@@ -108,6 +108,7 @@ public class UserService {
                     .role(new ArrayList<>())
                     .userRefreshToken(userRefreshToken)
                     .build();
+
             user.addUserRole(UserRole.ROLE_USER);
             userRepository.save(user);
             return ResponseEntity.status(201).body("User Success Resister");

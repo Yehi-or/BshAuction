@@ -28,7 +28,7 @@ public class BidService {
     private final ProductRepository productRepository;
     RedisTemplate<String, String> redisTemplate;
 
-    public boolean deleteBidHistory(BidCancelInfoDTO bidCancelInfoDTO, Long productId, int listSize) {
+    public boolean deleteBidHistory(BidCancelInfoDTO bidCancelInfoDTO, Long productId) {
         Long userId = bidCancelInfoDTO.getUserId();
         BigDecimal bidProductPrice = bidCancelInfoDTO.getBidPrice();
 
@@ -36,11 +36,6 @@ public class BidService {
 
         if (deleteRows > 0) {
             Long deleteBidRows = bidRepository.deleteBidUserIdAndProductId(userId, productId, bidProductPrice);
-
-            if(listSize == deleteBidRows) {
-                redisTemplate.opsForZSet().remove("product" + productId, userId.toString());
-                log.info(Objects.requireNonNull(redisTemplate.opsForZSet().range("product2", 0, -1)).toString());
-            }
 
             return deleteBidRows > 0;
         }
@@ -86,10 +81,10 @@ public class BidService {
     }
 
     @Transactional
-    public ReturnBidDeleteDTO deleteBidHistoryAndUpdateProductPrice(List<BidCancelInfoDTO> bidCancelInfoDTOS, Long productId, int listSize) {
+    public ReturnBidDeleteDTO deleteBidHistoryAndUpdateProductPrice(List<BidCancelInfoDTO> bidCancelInfoDTOS, Long productId) {
 
         boolean isDelete = false;
-
+        int deleteCnt = 0;
         BigDecimal mostHighBidPrice = bidCancelInfoDTOS.get(0).getBidPrice();
 
         for (int i = 0; i < bidCancelInfoDTOS.size(); i++) {
@@ -102,7 +97,8 @@ public class BidService {
                 }
             }
 
-            isDelete = deleteBidHistory(bidCancelInfoDTO, productId, listSize);
+            isDelete = deleteBidHistory(bidCancelInfoDTO, productId);
+            deleteCnt++;
         }
 
         ReturnUpdateProductBidDTO returnUpdateProductBidDTO = updateProductPriceCurrently(productId, mostHighBidPrice);
@@ -111,16 +107,19 @@ public class BidService {
             return ReturnBidDeleteDTO.builder()
                     .updateBidPrice(returnUpdateProductBidDTO.getReturnMostPrice())
                     .returnTypeString("successUpdateAndDelete")
+                    .deleteCnt(deleteCnt)
                     .build();
         } else if(isDelete){
             return ReturnBidDeleteDTO.builder()
                     .updateBidPrice(null)
                     .returnTypeString("successDelete")
+                    .deleteCnt(deleteCnt)
                     .build();
         } else {
             return ReturnBidDeleteDTO.builder()
                     .updateBidPrice(null)
                     .returnTypeString("fail")
+                    .deleteCnt(deleteCnt)
                     .build();
         }
     }

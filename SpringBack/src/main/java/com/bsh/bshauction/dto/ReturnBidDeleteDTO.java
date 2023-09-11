@@ -13,4 +13,5 @@ import java.math.BigDecimal;
 public class ReturnBidDeleteDTO {
     private String returnTypeString;
     private BigDecimal updateBidPrice;
+    private int deleteCnt;
 }

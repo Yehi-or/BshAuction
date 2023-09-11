@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.persistence.OptimisticLockException;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.Optional;
 
 @Service
@@ -44,93 +45,106 @@ public class BidHistoryService {
 
         ReturnBidAttemptDTO returnBidAttemptDTO;
 
-        //기존 상품보다 낮은 가격으로 입찰을 시도한지 확인 일단 프론트 단에서 막고 마지막 방어용
-        if (product.getPrice().compareTo(bidPrice) > 0) {
-            returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
-                    .returnMessage("accessFail")
-                    .userNick(null)
-                    .userId(null)
-                    .endTime(product.getFinishAt())
-                    .build();
-            return returnBidAttemptDTO;
-        }
+        LocalDateTime currentTime = LocalDateTime.now();
+        LocalDateTime finishTime = product.getFinishAt();
 
-        // 중복 확인
-        long duplicateCount = bidHistoryRepository.countByProductAndAmountAndUser(product, bidPrice, user);
-
-        if (duplicateCount > 0) {
-            returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
-                    .returnMessage("duplicated")
-                    .userNick(null)
-                    .userId(null)
-                    .endTime(product.getFinishAt())
-                    .build();
-            return returnBidAttemptDTO;
-        }
-
-        BidHistory bidHistory = BidHistory.builder()
-                .user(user)
-                .product(product)
-                .amount(bidPrice)
-                .build();
-
-        bidHistoryRepository.save(bidHistory);
-
-        // 가장 최근 입찰 기록 조회
-        Optional<BidHistory> bidHistoryOptional = bidHistoryRepository.findTop1ByProductAndAmountOrderByCreatedAt(product, bidPrice);
-        BidHistory findSameAttempt = bidHistoryOptional.orElse(null);
-
-        if (findSameAttempt != null) {
-            if (findSameAttempt.getUser().getUserId().equals(userId)) {
-                Bid bid = Bid.builder()
-                        .user(user)
-                        .product(product)
-                        .amount(bidPrice)
-                        .build();
-                bidRepository.save(bid);
-
-                BigDecimal highestBidAmount = bidRepository.findMaxPrice(product);
-
-                //상품 가격 업데이트 (가장 높은 가격으로)
-                if (highestBidAmount.compareTo(BigDecimal.ZERO) > 0) {
-                    Product updatedProduct = productRepository.findById(productId)
-                            .orElseThrow(() -> new IllegalArgumentException("Product not found"));
-
-                    if (updatedProduct.getVersion().equals(product.getVersion())) {
-                        // 상품 가격 업데이트
-                        log.info("success Update");
-                        updatedProduct.setPrice(highestBidAmount);
-                        productRepository.save(updatedProduct);
-                    } else {
-                        // 충돌이 발생한 경우 예외 발생
-                        log.info("detected");
-                        //ExceptionHandler 설정 해야함.....
-                        throw new OptimisticLockException("Concurrent update detected for product with ID: " + productId);
-                    }
-                }
+        if(currentTime.isBefore(finishTime)) {
+            //기존 상품보다 낮은 가격으로 입찰을 시도한지 확인 일단 프론트 단에서 막고 마지막 방어용
+            if (product.getPrice().compareTo(bidPrice) > 0) {
                 returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
-                        .returnMessage("success")
-                        .userNick(user.getUserNick())
-                        .userId(userId)
-                        .endTime(product.getFinishAt())
-                        .build();
-                return returnBidAttemptDTO;
-            } else {
-                returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
-                        .returnMessage("fail")
+                        .returnMessage("accessFail")
                         .userNick(null)
                         .userId(null)
                         .endTime(product.getFinishAt())
                         .build();
                 return returnBidAttemptDTO;
             }
+
+            // 중복 확인
+            Long duplicateCount = bidHistoryRepository.countByProductAndAmountAndUser(product, bidPrice, user);
+
+            if (duplicateCount > 0) {
+                returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                        .returnMessage("duplicated")
+                        .userNick(null)
+                        .userId(null)
+                        .endTime(product.getFinishAt())
+                        .build();
+                return returnBidAttemptDTO;
+            }
+
+            BidHistory bidHistory = BidHistory.builder()
+                    .user(user)
+                    .product(product)
+                    .amount(bidPrice)
+                    .build();
+
+            bidHistoryRepository.save(bidHistory);
+
+            // 가장 최근 입찰 기록 조회
+            Optional<BidHistory> bidHistoryOptional = bidHistoryRepository.findTop1ByProductAndAmountOrderByCreatedAt(product, bidPrice);
+            BidHistory findSameAttempt = bidHistoryOptional.orElse(null);
+
+            if (findSameAttempt != null) {
+                if (findSameAttempt.getUser().getUserId().equals(userId)) {
+                    Bid bid = Bid.builder()
+                            .user(user)
+                            .product(product)
+                            .amount(bidPrice)
+                            .build();
+                    bidRepository.save(bid);
+
+                    BigDecimal highestBidAmount = bidRepository.findMaxPrice(product);
+
+                    //상품 가격 업데이트 (가장 높은 가격으로)
+                    if (highestBidAmount.compareTo(BigDecimal.ZERO) > 0) {
+                        Product updatedProduct = productRepository.findById(productId)
+                                .orElseThrow(() -> new IllegalArgumentException("Product not found"));
+
+                        if (updatedProduct.getVersion().equals(product.getVersion())) {
+                            // 상품 가격 업데이트
+                            log.info("success Update");
+                            updatedProduct.setPrice(highestBidAmount);
+                            productRepository.save(updatedProduct);
+                        } else {
+                            // 충돌이 발생한 경우 예외 발생
+                            log.info("detected");
+                            //ExceptionHandler 설정 해야함.....
+                            throw new OptimisticLockException("Concurrent update detected for product with ID: " + productId);
+                        }
+                    }
+                    returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                            .returnMessage("success")
+                            .userNick(user.getUserNick())
+                            .userId(userId)
+                            .endTime(product.getFinishAt())
+                            .build();
+                } else {
+                    returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                            .returnMessage("fail")
+                            .userNick(null)
+                            .userId(null)
+                            .endTime(product.getFinishAt())
+                            .build();
+                }
+                return returnBidAttemptDTO;
+            }
+            returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                    .returnMessage("fail")
+                    .userNick(null)
+                    .userId(null)
+                    .endTime(product.getFinishAt())
+                    .build();
+        } else {
+            log.info("time_over");
+
+            returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
+                    .returnMessage("timeOver")
+                    .userNick(null)
+                    .userId(null)
+                    .endTime(product.getFinishAt())
+                    .build();
         }
-        returnBidAttemptDTO = ReturnBidAttemptDTO.builder()
-                .returnMessage("fail")
-                .userNick(null)
-                .userId(null)
-                .endTime(product.getFinishAt())
-                .build();
         return returnBidAttemptDTO;
     }
 }

@@ -79,7 +79,7 @@ li {
     position: relative;
     float: left;
     width: 100%;
-    display: inline-block;
+    /* display: inline-block; */
     display: inline;
     border: 1px solid #ddd;
 }
@@ -89,7 +89,7 @@ li {
     width: 100%;
     border-bottom: 1px solid #ddd;
     text-align: center;
-    display: inline-block;
+    /* display: inline-block; */
     display: inline;
 }
 

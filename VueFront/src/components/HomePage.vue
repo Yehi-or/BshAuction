@@ -45,7 +45,7 @@ export default {
         if(index !== null || index !== undefined) {
           this.productList[index].productPrice = content.productPrice;
         }
-
+        //
       })
     })
 
