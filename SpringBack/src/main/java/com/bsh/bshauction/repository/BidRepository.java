@@ -22,4 +22,5 @@ public interface BidRepository extends JpaRepository<Bid, Long>, BidRepositoryCu
 
     @Query("SELECT NEW com.bsh.bshauction.dto.BidListDTO(bid.amount, user.userNick, bid.user.userId) FROM Bid bid JOIN  User user on user.userId = bid.user.userId WHERE bid.product = :product ORDER BY bid.amount ASC")
     List<BidListDTO> findByProductOrderByAmountAsc(@Param("product") Product product);
+
 }

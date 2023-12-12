@@ -134,6 +134,8 @@ public class StompController {
         }
     }
 
+
+
     @MessageMapping(value = "/product.bidCancel.{productId}")
     public void bidCancel(@DestinationVariable Long productId, @Payload BidCancelDTO bidCancelDTO) {
         try {

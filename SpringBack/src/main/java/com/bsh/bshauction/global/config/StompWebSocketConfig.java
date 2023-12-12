@@ -25,10 +25,8 @@ public class StompWebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-
         registry.setPathMatcher(new AntPathMatcher("."));
         registry.setApplicationDestinationPrefixes("/pub");
-
         registry.enableStompBrokerRelay("/queue", "/topic", "/exchange", "/amq/queue");
     }
 

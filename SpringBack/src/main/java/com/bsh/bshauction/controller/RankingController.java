@@ -25,4 +25,5 @@ public class RankingController {
     public List<String> getRankingList() {
         return redisService.searchRankingList();
     }
+
 }

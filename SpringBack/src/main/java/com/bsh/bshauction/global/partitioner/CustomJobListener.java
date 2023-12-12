@@ -20,7 +20,6 @@ public class CustomJobListener implements JobExecutionListener {
 
     @Override
     public void afterJob(JobExecution jobExecution) {
-
         // 작업 실행 후에 수행할 작업
         // 배치 잡을 나눠서 처리할수 있나?
         if (jobExecution.getStatus() == BatchStatus.COMPLETED) {
