@@ -1,0 +1,108 @@
+buildscript {
+    ext {
+        queryDslVersion = "5.0.0"
+    }
+}
+
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '2.7.12'
+    id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+    id "com.ewerk.gradle.plugins.querydsl" version "1.0.10"
+}
+
+group = 'com.bsh'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = '17'
+
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    compileOnly 'org.projectlombok:lombok'
+    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+    developmentOnly 'org.springframework.boot:spring-boot-devtools'
+    annotationProcessor('org.springframework.boot:spring-boot-configuration-processor')
+    annotationProcessor('org.projectlombok:lombok')
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    implementation 'org.redisson:redisson-spring-boot-starter:3.18.0'
+
+    // https://mvnrepository.com/artifact/org.webjars/stomp-websocket
+    implementation group: 'org.webjars', name: 'stomp-websocket', version: '2.3.3-1'
+
+    // security
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    //QueryDSL
+    implementation "com.querydsl:querydsl-jpa:${queryDslVersion}"
+    implementation "com.querydsl:querydsl-apt:${queryDslVersion}"
+
+    // jwt
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    implementation 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+    implementation 'io.jsonwebtoken:jjwt-impl:0.11.5'
+
+    // RabbitMQ
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    testImplementation 'org.springframework.amqp:spring-rabbit-test'
+
+    //외부 브로커를 사용하기 위해
+    // https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-reactor-netty
+    implementation group: 'org.springframework.boot', name: 'spring-boot-starter-reactor-netty', version: '2.4.6'
+
+    testImplementation("org.junit.platform:junit-platform-launcher:1.5.2")
+    testImplementation('org.junit.jupiter:junit-jupiter:5.9.2')
+
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'io.lettuce:lettuce-core:6.1.5.RELEASE'
+
+    implementation 'org.springframework.batch:spring-batch-core'
+    implementation 'org.springframework.batch:spring-batch-infrastructure'
+    implementation 'org.springframework.boot:spring-boot-starter-batch'
+
+
+}
+
+// QueryDSL 경로
+def querydslDir = "$buildDir/generated/querydsl"
+
+// JPA 사용 여부, 경로 설정
+querydsl {
+    jpa = true
+    querydslSourcesDir = querydslDir
+}
+
+// build 시 사용할 sourceSet
+sourceSets {
+    main.java.srcDir querydslDir
+}
+
+// querydsl 컴파일 옵션
+compileQuerydsl {
+    options.annotationProcessorPath = configurations.querydsl
+    classpath = sourceSets.main.runtimeClasspath + configurations.querydsl
+}
+
+// querydsl 이 compileClassPath 상속
+configurations {
+    compileOnly {
+        extendsFrom annotationProcessor
+    }
+    querydsl.extendsFrom compileClasspath
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
